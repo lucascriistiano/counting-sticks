@@ -1,23 +1,27 @@
 # -*- coding: utf-8 -*-
 from PyQt5 import QtCore, QtGui, QtWidgets
+import ui.dialogs as dialogs
+from ui.widgets import room
 
 
 class RegisterWidget(QtWidgets.QWidget):
 
-    def __init__(self, parent, counting_sticks):
-        super(RegisterWidget, self).__init__(parent)
+    def __init__(self, main_window, counting_sticks):
+        super(RegisterWidget, self).__init__(main_window)
 
         self.counting_sticks = counting_sticks
 
-        self.parent = parent
-        self.parent.setObjectName("RegisterWindow")
-        self.parent.setWindowTitle("Register - Counting Sticks")
-        self.parent.resize(300, 400)
-        self.parent.setAutoFillBackground(False)
-        self.parent.setStyleSheet("")
+        self.main_window = main_window
+        self.main_window.setWindowTitle("Register - Counting Sticks")
+        self.main_window.resize(300, 400)
+        self.main_window.setAutoFillBackground(False)
 
-        self.central_widget = parent.central_widget
-        self.central_widget.setObjectName("centralWidget")
+        self.setStyleSheet("QLabel{color: white;}")
+
+        self.setAutoFillBackground(True)
+        palette = self.palette()
+        palette.setColor(self.backgroundRole(), QtGui.QColor("#2e8ece"))
+        self.setPalette(palette)
 
         self.vertical_layout = QtWidgets.QVBoxLayout(self)
         self.vertical_layout.setContentsMargins(11, 11, 11, 11)
@@ -107,17 +111,6 @@ class RegisterWidget(QtWidgets.QWidget):
         self.push_button_back.setObjectName("push_button_back")
         self.vertical_layout.addWidget(self.push_button_back)
 
-        # self.parent.setCentralWidget(self.central_widget)
-
-        # self.menu_bar = QtWidgets.QMenuBar(self.parent)
-        # self.menu_bar.setGeometry(QtCore.QRect(0, 0, 300, 22))
-        # self.menu_bar.setObjectName("menu_bar")
-        # self.parent.setMenuBar(self.menu_bar)
-
-        # self.status_bar = QtWidgets.QStatusBar(self.parent)
-        # self.status_bar.setObjectName("status_bar")
-        # self.parent.setStatusBar(self.status_bar)
-
         self.connect_buttons()
 
     def connect_buttons(self):
@@ -142,31 +135,33 @@ class RegisterWidget(QtWidgets.QWidget):
         username = self.line_edit_username.text()
         password = self.line_edit_password.text()
 
-        self.parent.login_widget.line_edit_username.setText(username)
-        self.parent.login_widget.line_edit_password.setText(password)
+        self.main_window.login_widget.line_edit_username.setText(username)
+        self.main_window.login_widget.line_edit_password.setText(password)
 
     def close(self):
-        self.central_widget.removeWidget(self)
+        self.main_window.central_widget.removeWidget(self)
 
 
 class LoginWidget(QtWidgets.QWidget):
 
-    def __init__(self, parent, counting_sticks):
-        super(LoginWidget, self).__init__(parent)
+    def __init__(self, main_window, counting_sticks):
+        super(LoginWidget, self).__init__(main_window)
 
         self.counting_sticks = counting_sticks
 
-        self.parent = parent
-        self.parent.setWindowTitle("Login - Counting Sticks")
-        self.parent.setObjectName("LoginWindow")
-        self.parent.resize(300, 400)
-        self.parent.setAutoFillBackground(False)
-        self.parent.setStyleSheet("")
+        self.main_window = main_window
+        self.main_window.setWindowTitle("Login - Counting Sticks")
+        self.main_window.resize(300, 400)
+        self.main_window.setAutoFillBackground(False)
+        self.main_window.setStyleSheet("")
+
+        self.setStyleSheet("QLabel{color: white;}")
 
         self.setFixedSize(300, 400)
-
-        self.central_widget = parent.central_widget
-        self.central_widget.setObjectName("centralWidget")
+        self.setAutoFillBackground(True)
+        palette = self.palette()
+        palette.setColor(self.backgroundRole(), QtGui.QColor("#2e8ece"))
+        self.setPalette(palette)
 
         self.vertical_layout = QtWidgets.QVBoxLayout(self)
         self.vertical_layout.setContentsMargins(11, 11, 11, 11)
@@ -235,17 +230,6 @@ class LoginWidget(QtWidgets.QWidget):
         spacer_item_2 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
         self.vertical_layout.addItem(spacer_item_2)
 
-        # self.parent.setCentralWidget(self.central_widget)
-
-        # self.menu_bar = QtWidgets.QMenuBar(self.parent)
-        # self.menu_bar.setGeometry(QtCore.QRect(0, 0, 300, 22))
-        # self.menu_bar.setObjectName("menu_bar")
-        # self.parent.setMenuBar(self.menu_bar)
-
-        # self.status_bar = QtWidgets.QStatusBar(self.parent)
-        # self.status_bar.setObjectName("status_bar")
-        # self.parent.setStatusBar(self.status_bar)
-
         self.connect_buttons()
 
     def connect_buttons(self):
@@ -262,37 +246,50 @@ class LoginWidget(QtWidgets.QWidget):
             self.label_error_message.setText('Invalid username/password.')
 
     def show_room_list_widget(self):
-        room_list_widget = RoomListWidget(self.parent, self.counting_sticks)
-        self.central_widget.addWidget(room_list_widget)
-        self.central_widget.setCurrentWidget(room_list_widget)
+        room_list_widget = RoomListWidget(self.main_window, self.counting_sticks)
+        self.main_window.central_widget.addWidget(room_list_widget)
+        self.main_window.central_widget.setCurrentWidget(room_list_widget)
 
 
 class RoomListWidget(QtWidgets.QWidget):
 
-    def __init__(self, parent, counting_sticks):
-        super(RoomListWidget, self).__init__(parent)
+    def __init__(self, main_window, counting_sticks, update_time=1000):
+        super(RoomListWidget, self).__init__(main_window)
 
         self.counting_sticks = counting_sticks
 
-        self.parent = parent
-        self.parent.setWindowTitle("Room List - Counting Sticks")
-        self.parent.setObjectName("RoomListWindow")
-        self.parent.resize(700, 350)
-        self.parent.setAutoFillBackground(False)
-        self.parent.setStyleSheet("QWidget#room_widget {border: 1px solid #C0C0C0; background-color: #FFFF99;}")
+        self.main_window = main_window
+        self.main_window.setWindowTitle("Room List - Counting Sticks")
+        self.main_window.resize(640, 350)
+        self.main_window.setAutoFillBackground(False)
 
-        self.central_widget = parent.central_widget
-        self.central_widget.setObjectName("centralWidget")
+        self.setAutoFillBackground(True)
+        palette = self.palette()
+        palette.setColor(self.backgroundRole(), QtGui.QColor("#27ae60"))
+        self.setPalette(palette)
 
         self.vertical_layout = QtWidgets.QVBoxLayout(self)
         self.vertical_layout.setObjectName("vertical_layout")
 
-        self.scroll_area = QtWidgets.QScrollArea(self.central_widget)
+        font = QtGui.QFont()
+        font.setFamily("Al Nile")
+        font.setPointSize(20)
+        font.setWeight(75)
+
+        self.label_title = QtWidgets.QLabel(self)
+        self.label_title.setText("Counting Sticks - Room List")
+        self.label_title.setFont(font)
+        self.label_title.setAlignment(QtCore.Qt.AlignCenter)
+        self.label_title.setObjectName("label_title")
+
+        self.vertical_layout.addWidget(self.label_title)
+
+        self.scroll_area = QtWidgets.QScrollArea(self.main_window.central_widget)
         self.scroll_area.setWidgetResizable(True)
         self.scroll_area.setObjectName("scroll_area")
 
         self.scroll_area_widget_contents = QtWidgets.QWidget()
-        self.scroll_area_widget_contents.setGeometry(QtCore.QRect(0, 0, 674, 281))
+        # self.scroll_area_widget_contents.setGeometry(QtCore.QRect(0, 0, 670, 280))
         self.scroll_area_widget_contents.setObjectName("scroll_area_widget_contents")
 
         self.horizontal_layout = QtWidgets.QHBoxLayout(self.scroll_area_widget_contents)
@@ -300,14 +297,8 @@ class RoomListWidget(QtWidgets.QWidget):
         self.horizontal_layout.setObjectName("horizontal_layout")
 
         self.room_widget_dict = {}
-        room_id_list = self.counting_sticks.list_rooms_ids()
-        for room_id in room_id_list:
-            if room_id not in self.room_widget_dict:
-                room_widget = RoomInfoWidget(self, self.counting_sticks, room_id)
-                room_widget.setObjectName("room_widget_" + room_id)
-                self.horizontal_layout.addWidget(room_widget)
 
-                self.room_widget_dict[room_id] = room_widget
+        # self.update_room_list()
 
         self.scroll_area.setWidget(self.scroll_area_widget_contents)
         self.vertical_layout.addWidget(self.scroll_area)
@@ -322,44 +313,94 @@ class RoomListWidget(QtWidgets.QWidget):
         self.push_button_logout.setObjectName("push_button_logout")
         self.vertical_layout.addWidget(self.push_button_logout)
 
-        # self.parent.setCentralWidget(self.central_widget)
+        # self.main_window.setCentralWidget(self.main_window.central_widget)
 
-        self.status_bar = QtWidgets.QStatusBar(self.parent)
+        self.status_bar = QtWidgets.QStatusBar(self.main_window)
         self.status_bar.setObjectName("status_bar")
-        self.parent.setStatusBar(self.status_bar)
+        self.main_window.setStatusBar(self.status_bar)
 
         self.connect_buttons()
+
+        self.update_room_list()
+
+        self.timer_room_list_update = QtCore.QTimer()
+        self.timer_room_list_update.timeout.connect(self.update_room_list)
+        self.timer_room_list_update.start(update_time)
 
     def connect_buttons(self):
         self.push_button_create_room.clicked.connect(self.show_new_room_dialog)
         self.push_button_logout.clicked.connect(self.logout)
 
     def show_new_room_dialog(self):
-        new_room_dialog = NewRoomDialog(self, self.counting_sticks)
+        new_room_dialog = dialogs.NewRoomDialog(self, self.counting_sticks)
         new_room_dialog.exec_()
 
     def logout(self):
         print('Will do logout')
 
+    def update_room_list(self):
+        room_id_list = self.counting_sticks.list_rooms_ids()
+
+        for room_id in room_id_list:
+            if room_id not in self.room_widget_dict:
+                room_widget = RoomInfoWidget(self, self.main_window, self.counting_sticks, room_id)
+                room_widget.setObjectName("room_widget_" + room_id)
+                self.horizontal_layout.addWidget(room_widget)
+
+                self.room_widget_dict[room_id] = room_widget
+
+        # remove closed rooms
+        # remove closed rooms
+        # remove closed rooms
+        # remove closed rooms
+        # remove closed rooms
+        # remove closed rooms
+        # remove closed rooms
+        # remove closed rooms
+        # remove closed rooms
+        # remove closed rooms
+        # remove closed rooms
+        # remove closed rooms
+        # remove closed rooms
+        # remove closed rooms
+        # remove closed rooms
+        # remove closed rooms
+        # remove closed rooms
+        # remove closed rooms
+        # remove closed rooms
+        # remove closed rooms
+        # remove closed rooms
+        # remove closed rooms
+        # remove closed rooms
+        # remove closed rooms
+
 
 class RoomInfoWidget(QtWidgets.QWidget):
 
-    def __init__(self, parent, counting_sticks, room_id):
+    def __init__(self, parent, main_window, counting_sticks, room_id, update_time=1000):
         super(RoomInfoWidget, self).__init__(parent)
 
         self.counting_sticks = counting_sticks
         self.room_id = room_id
 
+        self.main_window = main_window
+
+        # self.setAutoFillBackground(True)
+
         size_policy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Preferred)
         size_policy.setHorizontalStretch(200)
         size_policy.setVerticalStretch(200)
         size_policy.setHeightForWidth(self.sizePolicy().hasHeightForWidth())
-
         self.setSizePolicy(size_policy)
+
         self.setMinimumSize(QtCore.QSize(200, 250))
         self.setMaximumSize(QtCore.QSize(200, 250))
-        self.setStyleSheet("")
         self.setObjectName("room_widget")
+
+        self.setAutoFillBackground(True)
+        palette = self.palette()
+        palette.setColor(self.backgroundRole(), QtGui.QColor("#2ecc71"))
+        self.setPalette(palette)
 
         self.vertical_layout_2 = QtWidgets.QVBoxLayout(self)
         self.vertical_layout_2.setContentsMargins(0, 0, 0, 0)
@@ -368,6 +409,9 @@ class RoomInfoWidget(QtWidgets.QWidget):
         spacer_item = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
         self.vertical_layout_2.addItem(spacer_item)
 
+        palette = QtGui.QPalette()
+        palette.setColor(QtGui.QPalette.Foreground, QtCore.Qt.white)
+
         font = QtGui.QFont()
         font.setPointSize(20)
 
@@ -375,6 +419,7 @@ class RoomInfoWidget(QtWidgets.QWidget):
         self.label_room_name.setFont(font)
         self.label_room_name.setAlignment(QtCore.Qt.AlignCenter)
         self.label_room_name.setObjectName("label_room_name")
+        self.label_room_name.setPalette(palette)
         self.vertical_layout_2.addWidget(self.label_room_name)
 
         font = QtGui.QFont()
@@ -384,6 +429,7 @@ class RoomInfoWidget(QtWidgets.QWidget):
         self.label_current_players.setFont(font)
         self.label_current_players.setAlignment(QtCore.Qt.AlignCenter)
         self.label_current_players.setObjectName("label_current_players")
+        self.label_current_players.setPalette(palette)
         self.vertical_layout_2.addWidget(self.label_current_players)
 
         font = QtGui.QFont()
@@ -393,6 +439,7 @@ class RoomInfoWidget(QtWidgets.QWidget):
         self.label_game_status.setFont(font)
         self.label_game_status.setAlignment(QtCore.Qt.AlignCenter)
         self.label_game_status.setObjectName("label_game_status")
+        self.label_game_status.setPalette(palette)
         self.vertical_layout_2.addWidget(self.label_game_status)
 
         spacer_item_1 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
@@ -412,15 +459,34 @@ class RoomInfoWidget(QtWidgets.QWidget):
 
         self.update_room_info()
 
+        self.timer_info_update = QtCore.QTimer()
+        self.timer_info_update.timeout.connect(self.update_room_info)
+        self.timer_info_update.start(update_time)
+
     def connect_buttons(self):
         self.push_button_play.clicked.connect(self.play)
         self.push_button_watch.clicked.connect(self.watch)
 
     def play(self):
-        print('Play')
+        print('# To implement: test if can enter') # test if can enter
+        can_play = True  # change
+
+        if can_play:
+            print('# To implement: add in players list')  # test if can enter
+
+            entered_on_room = True  # change
+            if entered_on_room:
+                room_widget = room.RoomWidget(self.main_window, self.counting_sticks, self.room_id)
+                self.main_window.central_widget.addWidget(room_widget)
+                self.main_window.central_widget.setCurrentWidget(room_widget)
+            else:
+                QtWidgets.QMessageBox(self, "It wasn't possible to join the room. Maybe it's full now. "
+                                            "Try again later. :(")
+        else:
+            QtWidgets.QMessageBox(self, "Sorry. You can't join this room.")
 
     def watch(self):
-        print('Watch')
+        print('# To implement: watch')  # implement watch
 
     def update_room_info(self):
         room_state_info = self.counting_sticks.room_state(self.room_id)
@@ -439,90 +505,3 @@ class RoomInfoWidget(QtWidgets.QWidget):
 
         accepting_players = not playing and current_players_number < max_players
         self.push_button_play.setEnabled(accepting_players)
-
-
-class NewRoomDialog(QtWidgets.QDialog):
-
-    def __init__(self, parent, counting_sticks):
-        super(NewRoomDialog, self).__init__(parent)
-
-        self.counting_sticks = counting_sticks
-
-        self.setWindowTitle("New Room - Counting Sticks")
-        self.setObjectName("NewRoomWindow")
-        self.resize(300, 300)
-        self.setAutoFillBackground(False)
-        self.setStyleSheet("")
-        self.resize(300, 300)
-
-        font = QtGui.QFont()
-        font.setFamily("Baskerville")
-        font.setPointSize(30)
-        font.setBold(True)
-        font.setWeight(75)
-
-        self.label_logo = QtWidgets.QLabel(self)
-        self.label_logo.setText("New Room")
-        self.label_logo.setGeometry(QtCore.QRect(40, 20, 221, 31))
-        self.label_logo.setFont(font)
-        self.label_logo.setAlignment(QtCore.Qt.AlignCenter)
-        self.label_logo.setWordWrap(False)
-        self.label_logo.setObjectName("label_logo")
-
-        self.label_room_name = QtWidgets.QLabel(self)
-        self.label_room_name.setText("Room Name")
-        self.label_room_name.setGeometry(QtCore.QRect(44, 70, 81, 20))
-        self.label_room_name.setObjectName("label_room_name")
-
-        self.line_edit_room_name = QtWidgets.QLineEdit(self)
-        self.line_edit_room_name.setGeometry(QtCore.QRect(40, 93, 220, 20))
-        self.line_edit_room_name.setInputMask("")
-        self.line_edit_room_name.setText("")
-        self.line_edit_room_name.setObjectName("line_edit_room_name")
-
-        self.label_min_players = QtWidgets.QLabel(self)
-        self.label_min_players.setText("Min Players")
-        self.label_min_players.setGeometry(QtCore.QRect(46, 122, 81, 20))
-        self.label_min_players.setObjectName("label_min_players")
-
-        self.spin_box_min_players = QtWidgets.QSpinBox(self)
-        self.spin_box_min_players.setGeometry(QtCore.QRect(41, 144, 91, 24))
-        self.spin_box_min_players.setMinimum(4)
-        self.spin_box_min_players.setMaximum(6)
-        self.spin_box_min_players.setObjectName("spin_box_min_players")
-
-        self.label_max_players = QtWidgets.QLabel(self)
-        self.label_max_players.setText("Max Players")
-        self.label_max_players.setGeometry(QtCore.QRect(167, 123, 81, 20))
-        self.label_max_players.setObjectName("label_max_players")
-
-        self.spin_box_max_players = QtWidgets.QSpinBox(self)
-        self.spin_box_max_players.setGeometry(QtCore.QRect(162, 144, 91, 24))
-        self.spin_box_max_players.setMinimum(4)
-        self.spin_box_max_players.setMaximum(6)
-        self.spin_box_max_players.setObjectName("spin_box_max_players")
-
-        self.push_button_create_room = QtWidgets.QPushButton(self)
-        self.push_button_create_room.setText("Create Room")
-        self.push_button_create_room.setGeometry(QtCore.QRect(40, 191, 220, 40))
-        self.push_button_create_room.setObjectName("push_button_create_room")
-
-        self.connect_buttons()
-
-    def connect_buttons(self):
-        self.push_button_create_room.clicked.connect(self.create_room)
-
-    def create_room(self):
-        if not self.has_empty_fields():
-            room_name = self.line_edit_room_name.text()
-            min_players = self.spin_box_min_players.value()
-            max_players = self.spin_box_max_players.value()
-
-            self.counting_sticks.create_room(room_name, min_players, max_players)
-            self.close()
-        else:
-            print("All fields must be filled")  # Set in a label
-
-    def has_empty_fields(self):
-        return self.line_edit_room_name.text() == "" or self.spin_box_min_players.text() == "" \
-               or self.spin_box_max_players.text() == ""

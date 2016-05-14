@@ -21,4 +21,6 @@ FORMS    += \
     login.ui \
     register.ui \
     new_room.ui \
-    room_list.ui
+    room_list.ui \
+    room.ui \
+    dialog.ui
