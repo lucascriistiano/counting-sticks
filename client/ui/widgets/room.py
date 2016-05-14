@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from PyQt5 import QtCore, QtGui, QtWidgets
+from os.path import abspath, dirname, join
 
 
 class RoomWidget(QtWidgets.QWidget):
@@ -115,38 +116,30 @@ class RoomWidget(QtWidgets.QWidget):
         self.widget_my_sticks.setStyleSheet("QLabel{color: #f1c40f;}, QLabel:hover{color:  #f39c12;}")
         self.widget_my_sticks.setObjectName("widget_my_sticks")
 
-        self.horizontalLayout_9 = QtWidgets.QHBoxLayout(self.widget_my_sticks)
-        self.horizontalLayout_9.setContentsMargins(0, 0, 0, 0)
-        self.horizontalLayout_9.setObjectName("horizontalLayout_9")
+        self.horizontal_layout_my_sticks = QtWidgets.QHBoxLayout(self.widget_my_sticks)
+        self.horizontal_layout_my_sticks.setContentsMargins(0, 0, 0, 0)
+        self.horizontal_layout_my_sticks.setObjectName("horizontal_layout_my_sticks")
 
-        font_big_stick = QtGui.QFont()
-        font_big_stick.setPointSize(150)
-        font_big_stick.setBold(True)
-        font_big_stick.setWeight(75)
+        # Add player sticks
+        self.font_big_stick = QtGui.QFont()
+        self.font_big_stick.setPointSize(150)
+        self.font_big_stick.setBold(True)
+        self.font_big_stick.setWeight(75)
 
-        self.label_my_stick_1 = QtWidgets.QLabel(self.widget_my_sticks)
-        self.label_my_stick_1.setText("|")
-        self.label_my_stick_1.setFont(font_big_stick)
-        self.label_my_stick_1.setStyleSheet(":hover {color:  #f39c12;}")
-        self.label_my_stick_1.setAlignment(QtCore.Qt.AlignCenter)
-        self.label_my_stick_1.setObjectName("label_my_stick_1")
-        self.horizontalLayout_9.addWidget(self.label_my_stick_1)
+        self.my_sticks = []
+        for i in range(0, 3):
+            label_my_stick = QtWidgets.QLabel(self.widget_my_sticks)
+            label_my_stick.setText("|")
+            label_my_stick.setFont(self.font_big_stick)
+            label_my_stick.setStyleSheet(":hover {color:  #f39c12;}")
+            label_my_stick.setAlignment(QtCore.Qt.AlignCenter)
+            label_my_stick.setObjectName("label_stick")
+            self.horizontal_layout_my_sticks.addWidget(label_my_stick)
 
-        self.label_my_stick_2 = QtWidgets.QLabel(self.widget_my_sticks)
-        self.label_my_stick_2.setText("|")
-        self.label_my_stick_2.setFont(font_big_stick)
-        self.label_my_stick_2.setStyleSheet(":hover {color:  #f39c12;}")
-        self.label_my_stick_2.setAlignment(QtCore.Qt.AlignCenter)
-        self.label_my_stick_2.setObjectName("label_my_stick_2")
-        self.horizontalLayout_9.addWidget(self.label_my_stick_2)
+            label_my_stick.mousePressEvent = self.add_stick
+            self.my_sticks.append(label_my_stick)
 
-        self.label_my_stick_3 = QtWidgets.QLabel(self.widget_my_sticks)
-        self.label_my_stick_3.setText("|")
-        self.label_my_stick_3.setFont(font_big_stick)
-        self.label_my_stick_3.setStyleSheet(":hover {color:  #f39c12;}")
-        self.label_my_stick_3.setAlignment(QtCore.Qt.AlignCenter)
-        self.label_my_stick_3.setObjectName("label_my_stick_3")
-        self.horizontalLayout_9.addWidget(self.label_my_stick_3)
+        self.selected_sticks = []
 
         self.widget_play = QtWidgets.QWidget(self.widget_game)
         self.widget_play.setGeometry(QtCore.QRect(580, 230, 100, 100))
@@ -172,72 +165,49 @@ class RoomWidget(QtWidgets.QWidget):
         self.label_button_go.setObjectName("label_button_go")
         self.horizontal_layout_10.addWidget(self.label_button_go)
 
-        self.widget_player_sticks_3 = QtWidgets.QWidget(self.widget_game)
-        self.widget_player_sticks_3.setGeometry(QtCore.QRect(230, 40, 300, 300))
-        self.widget_player_sticks_3.setMaximumSize(QtCore.QSize(300, 300))
-        self.widget_player_sticks_3.setStyleSheet("background-color: #2ecc71; border-radius: 15px;")
-        self.widget_player_sticks_3.setObjectName("widget_player_sticks_3")
+        self.widget_player_hand = QtWidgets.QWidget(self.widget_game)
+        self.widget_player_hand.setGeometry(QtCore.QRect(230, 40, 300, 300))
+        self.widget_player_hand.setMaximumSize(QtCore.QSize(300, 300))
+        self.widget_player_hand.setStyleSheet("background-color: #2ecc71; border-radius: 15px;")
+        self.widget_player_hand.setObjectName("widget_player_hand")
 
-        self.horizontal_layout_11 = QtWidgets.QHBoxLayout(self.widget_player_sticks_3)
+        self.horizontal_layout_11 = QtWidgets.QHBoxLayout(self.widget_player_hand)
         self.horizontal_layout_11.setContentsMargins(0, 0, 0, 0)
         self.horizontal_layout_11.setObjectName("horizontal_layout_11")
 
-        font_choosen_hand = QtGui.QFont()
-        font_choosen_hand.setPointSize(100)
-        font_choosen_hand.setBold(True)
-        font_choosen_hand.setWeight(75)
+        font_chosen_hand = QtGui.QFont()
+        font_chosen_hand.setPointSize(100)
+        font_chosen_hand.setBold(True)
+        font_chosen_hand.setWeight(75)
 
-        self.label_stick_20 = QtWidgets.QLabel(self.widget_player_sticks_3)
-        self.label_stick_20.setText("H")
-        self.label_stick_20.setFont(font_choosen_hand)
-        self.label_stick_20.setStyleSheet("color: white;")
-        self.label_stick_20.setAlignment(QtCore.Qt.AlignCenter)
-        self.label_stick_20.setObjectName("label_stick_20")
-        self.horizontal_layout_11.addWidget(self.label_stick_20)
+        parent_folder_path = dirname(dirname(abspath(__file__)))
+        pixmap_hand = QtGui.QPixmap(join(parent_folder_path, "img", "hand_cursor_xxl.png"))
+        # pixmap_hand = QtGui.QPixmap(join(parent_folder_path, "img", "hand_white.png"))
 
-        self.widget_choosen_sticks = QtWidgets.QWidget(self.widget_game)
-        self.widget_choosen_sticks.setGeometry(QtCore.QRect(290, 90, 180, 180))
-        self.widget_choosen_sticks.setMaximumSize(QtCore.QSize(180, 180))
-        self.widget_choosen_sticks.setStyleSheet("QLabel{color: #f1c40f;}, QLabel:hover{color:  #f39c12;}")
-        self.widget_choosen_sticks.setObjectName("widget_choosen_sticks")
+        self.label_hand = QtWidgets.QLabel(self.widget_player_hand)
+        # self.label_hand.setText("H")
+        self.label_hand.setPixmap(pixmap_hand)
+        self.label_hand.setFont(font_chosen_hand)
+        self.label_hand.setStyleSheet("color: white;")
+        self.label_hand.setAlignment(QtCore.Qt.AlignCenter)
+        self.label_hand.setObjectName("label_hand")
+        self.horizontal_layout_11.addWidget(self.label_hand)
 
-        self.horizontal_layout_14 = QtWidgets.QHBoxLayout(self.widget_choosen_sticks)
-        self.horizontal_layout_14.setContentsMargins(0, 0, 0, 0)
-        self.horizontal_layout_14.setObjectName("horizontal_layout_14")
+        self.widget_chosen_sticks = QtWidgets.QWidget(self.widget_game)
+        self.widget_chosen_sticks.setGeometry(QtCore.QRect(350, 180, 110, 110))
+        self.widget_chosen_sticks.setMaximumSize(QtCore.QSize(150, 150))
+        self.widget_chosen_sticks.setStyleSheet("QLabel{color: #f1c40f;}, "
+                                                "QLabel:hover{color:  #f39c12;}")  # to user test border: 1px solid red;
+        self.widget_chosen_sticks.setObjectName("widget_chosen_sticks")
 
-        font_big_stick = QtGui.QFont()
-        font_big_stick.setPointSize(150)
-        font_big_stick.setBold(True)
-        font_big_stick.setWeight(75)
-
-        self.label_choosen_stick = QtWidgets.QLabel(self.widget_choosen_sticks)
-        self.label_choosen_stick.setText("|")
-        self.label_choosen_stick.setFont(font_big_stick)
-        self.label_choosen_stick.setStyleSheet(":hover {color:  #f39c12;}")
-        self.label_choosen_stick.setAlignment(QtCore.Qt.AlignCenter)
-        self.label_choosen_stick.setObjectName("label_choosen_stick")
-        self.horizontal_layout_14.addWidget(self.label_choosen_stick)
-
-        self.label_choosen_stick_2 = QtWidgets.QLabel(self.widget_choosen_sticks)
-        self.label_choosen_stick_2.setText("|")
-        self.label_choosen_stick_2.setFont(font_big_stick)
-        self.label_choosen_stick_2.setStyleSheet(":hover {color:  #f39c12;}")
-        self.label_choosen_stick_2.setAlignment(QtCore.Qt.AlignCenter)
-        self.label_choosen_stick_2.setObjectName("label_choosen_stick_2")
-        self.horizontal_layout_14.addWidget(self.label_choosen_stick_2)
-
-        self.label_choosen_stick_3 = QtWidgets.QLabel(self.widget_choosen_sticks)
-        self.label_choosen_stick_3.setText("|")
-        self.label_choosen_stick_3.setFont(font_big_stick)
-        self.label_choosen_stick_3.setStyleSheet(":hover {color:  #f39c12;}")
-        self.label_choosen_stick_3.setAlignment(QtCore.Qt.AlignCenter)
-        self.label_choosen_stick_3.setObjectName("label_choosen_stick_3")
-        self.horizontal_layout_14.addWidget(self.label_choosen_stick_3)
+        self.horizontal_layout_chosen_sticks = QtWidgets.QHBoxLayout(self.widget_chosen_sticks)
+        self.horizontal_layout_chosen_sticks.setContentsMargins(0, 0, 0, 0)
+        self.horizontal_layout_chosen_sticks.setObjectName("horizontal_layout_chosen_sticks")
 
         self.widget_my_sticks.raise_()
         self.widget_play.raise_()
-        self.widget_player_sticks_3.raise_()
-        self.widget_choosen_sticks.raise_()
+        self.widget_player_hand.raise_()
+        self.widget_chosen_sticks.raise_()
 
         self.vertical_layout_4.addWidget(self.widget_game)
         self.horizontal_layout_3.addWidget(self.widget_container_game)
@@ -279,4 +249,31 @@ class RoomWidget(QtWidgets.QWidget):
         self.connect_buttons()
 
     def connect_buttons(self):
-        pass
+        self.label_button_go.mousePressEvent = self.go_button_action
+
+    def go_button_action(self, event):
+        print('Selected sticks: ' + str(len(self.selected_sticks)))
+
+    def add_stick(self, event):
+        if len(self.my_sticks) > 0:
+            # Remove stick from available sticks
+            clicked_label_my_stick = self.my_sticks.pop(0)
+            self.horizontal_layout_my_sticks.removeWidget(clicked_label_my_stick)
+
+            # Move stick to selected sticks
+            clicked_label_my_stick.setParent(self.widget_chosen_sticks)
+            clicked_label_my_stick.mousePressEvent = self.remove_stick
+            self.horizontal_layout_chosen_sticks.addWidget(clicked_label_my_stick)
+            self.selected_sticks.append(clicked_label_my_stick)
+
+    def remove_stick(self, event):
+        if len(self.selected_sticks) > 0:
+            # Remove stick from selected sticks
+            clicked_label_chosen_stick = self.selected_sticks.pop(0)
+            self.horizontal_layout_chosen_sticks.removeWidget(clicked_label_chosen_stick)
+
+            # Move stick to available sticks
+            clicked_label_chosen_stick.setParent(self.widget_my_sticks)
+            clicked_label_chosen_stick.mousePressEvent = self.add_stick
+            self.horizontal_layout_my_sticks.addWidget(clicked_label_chosen_stick)
+            self.my_sticks.append(clicked_label_chosen_stick)

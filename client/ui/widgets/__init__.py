@@ -468,7 +468,7 @@ class RoomInfoWidget(QtWidgets.QWidget):
         self.push_button_watch.clicked.connect(self.watch)
 
     def play(self):
-        print('# To implement: test if can enter') # test if can enter
+        print('# To implement: test if can enter')  # test if can enter
         can_play = True  # change
 
         if can_play:
