@@ -9,6 +9,7 @@ class CountingSticks(object):
 
     def __init__(self):
         self.lock = threading.Lock()
+        self.current_games = {}
 
     def register(self, username, email, password):
         mongo_client = pymongo.MongoClient()
@@ -75,23 +76,48 @@ class CountingSticks(object):
             mongo_client = pymongo.MongoClient()
             room_collection = mongo_client.countingsticks.room
             room = room_collection.find_one({'_id': bson.objectid.ObjectId(room_id.strip())})
-
             current_players = room['current_players']
-            if len(current_players) < room['max_players']:
+
+            joined_room = False
+            if not room['playing'] and len(current_players) < room['max_players']:
                 if username not in current_players:
                     room['current_players'].append(username)
                     room_collection.save(room)
-                    mongo_client.close()
-                return True
-            else:
-                return False
+                joined_room = True
+
+            mongo_client.close()
+            return joined_room
         finally:
             self.lock.release()
-            print('Released')
 
     def start_game(self, room_id):
-        # start a new game in the room
-        pass
+        self.lock.acquire()
+        try:
+            game_started = False
+            if self.current_games[room_id] is None:
+                mongo_client = pymongo.MongoClient()
+                room_collection = mongo_client.countingsticks.room
+                room = room_collection.find_one({'_id': bson.objectid.ObjectId(room_id.strip())})
+                current_players = room['current_players']
+
+                if len(current_players) >= room['min_players']:
+                    room['playing'] = True
+                    room_collection.save(room)
+
+                    game = Game(room_id, current_players)
+                    self.current_games[room_id] = game
+
+                    game_started = True
+                else:
+                    print('There isn\'t enough players')
+
+                mongo_client.close()
+            else:
+                print('A game for this room is already started')
+
+            return game_started
+        finally:
+            self.lock.release()
 
     def confirm_presence(self, username):
         # confirm that client is still present on room
@@ -100,8 +126,12 @@ class CountingSticks(object):
 
 class Game(object):
 
-    def __init__(self, room_id):
+    def __init__(self, room_id, players):
         self.room_id = room_id
-        self.players = []
 
+        self.player_info_dict = {}
+        for username in players:
+            self.player_info_dict[username] = {'username': username, 'current_sticks': 3,
+                                               'last_guesses': [], 'current_guess': None}
 
+        print(self.player_info_dict)
