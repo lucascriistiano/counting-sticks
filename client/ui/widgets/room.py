@@ -6,7 +6,7 @@ import qtawesome
 
 class RoomWidget(QtWidgets.QWidget):
 
-    def __init__(self, main_window, counting_sticks, room_id, username, update_time=500):
+    def __init__(self, main_window, counting_sticks, room_id, room_name, username, update_time=500):
         super(RoomWidget, self).__init__(main_window)
 
         self.counting_sticks = counting_sticks
@@ -18,7 +18,7 @@ class RoomWidget(QtWidgets.QWidget):
         self.selected_sticks = []
 
         self.main_window = main_window
-        self.main_window.setWindowTitle("Room " + room_id + " - Counting Sticks")
+        self.main_window.setWindowTitle("Room " + room_name + " - Counting Sticks")
         self.main_window.resize(1024, 600)
         self.main_window.setMinimumSize(QtCore.QSize(1024, 600))
         self.main_window.setMaximumSize(QtCore.QSize(1024, 600))
@@ -69,7 +69,7 @@ class RoomWidget(QtWidgets.QWidget):
         self.label_message = QtWidgets.QLabel(self.widget_container_game)
         self.label_message.setMaximumHeight(40)
         self.label_message.setMinimumHeight(40)
-        self.label_message.setText("It's your turn!")
+        # self.label_message.setText("It's your turn!")
         self.label_message.setFont(font_label_message)
         self.label_message.setStyleSheet("color: white;")
         self.label_message.setAlignment(QtCore.Qt.AlignCenter)
@@ -168,7 +168,7 @@ class RoomWidget(QtWidgets.QWidget):
         font_chosen_hand.setWeight(75)
 
         parent_folder_path = dirname(dirname(abspath(__file__)))
-        pixmap_hand = QtGui.QPixmap(join(parent_folder_path, "img", "hand_cursor_xxl.png"))
+        pixmap_hand = QtGui.QPixmap(join(parent_folder_path, "img", "hand_open_2.png"))
 
         self.label_hand = QtWidgets.QLabel(self.widget_player_hand)
         self.label_hand.setPixmap(pixmap_hand)
@@ -384,7 +384,9 @@ class RoomWidget(QtWidgets.QWidget):
         print('Selected sticks: ' + str(len(self.selected_sticks)))
 
     def new_game_button_action(self, event):
-        print('New game')
+        response = self.counting_sticks.new_game(self.room_id)
+        if not response['success']:
+            self.label_message.setText(response['error_message'])
 
     def exit_button_action(self, event):
         print('Leave room')
