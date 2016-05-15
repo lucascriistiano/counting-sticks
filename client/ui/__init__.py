@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-
 from PyQt5 import QtCore, QtGui, QtWidgets
 import ui.widgets as widgets
 
@@ -15,12 +14,11 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setCentralWidget(self.central_widget)
 
         self.login_widget = widgets.LoginWidget(self, self.counting_sticks)
-        self.login_widget.push_button_register.clicked.connect(self.register)
         self.central_widget.addWidget(self.login_widget)
 
         self.setWindowIcon(QtGui.QIcon('img/fire_matchstick.png'))
 
-    def register(self):
-        register_widget = widgets.RegisterWidget(self, self.counting_sticks)
-        self.central_widget.addWidget(register_widget)
-        self.central_widget.setCurrentWidget(register_widget)
+    def center_on_screen(self):
+        resolution = QtWidgets.QDesktopWidget().screenGeometry()
+        self.move((resolution.width() / 2) - (self.frameSize().width() / 2),
+                  (resolution.height() / 2) - (self.frameSize().height() / 2))
