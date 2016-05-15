@@ -23,21 +23,6 @@ class CountingSticks(object):
 
         return found_user is not None
 
-    def create_room(self, name, min_players, max_players):
-        mongo_client = pymongo.MongoClient()
-        db = mongo_client.countingsticks
-        new_room = {'name': name, 'min_players': min_players, 'max_players': max_players,
-                    'current_players': [], 'playing': False}
-        result = db.room.insert_one(new_room)
-        mongo_client.close()
-
-        return result.inserted_id
-
-    def close_room(self, room_id, username):
-        # check if the user who is closing is who created
-        # check if a game isn' running
-        pass
-
     def list_rooms_ids(self):
         mongo_client = pymongo.MongoClient()
         db = mongo_client.countingsticks
@@ -55,3 +40,43 @@ class CountingSticks(object):
         room = db.room.find_one({'_id': bson.objectid.ObjectId(room_id.strip())})
         mongo_client.close()
         return room
+
+    def create_room(self, name, min_players, max_players):
+        mongo_client = pymongo.MongoClient()
+        db = mongo_client.countingsticks
+        new_room = {'name': name, 'min_players': min_players, 'max_players': max_players,
+                    'current_players': [], 'playing': False}
+        result = db.room.insert_one(new_room)
+        mongo_client.close()
+
+        return result.inserted_id
+
+    def close_room(self, room_id, username):
+        # check if the user who is closing is who created
+        # check if a game isn't running
+        pass
+
+    def send_message(self, room_id, message):
+        # print message and add in message list
+        print(message)
+
+    def join_room(self):
+        # join room
+        pass
+
+    def start_game(self, room_id):
+        # start a new game in the room
+        pass
+
+    def confirm_presence(self, username):
+        # confirm that client is still present on room
+        pass
+
+
+class Game(object):
+
+    def __init__(self, room_id):
+        self.room_id = room_id
+        self.players = []
+
+
