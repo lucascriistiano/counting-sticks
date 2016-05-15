@@ -330,7 +330,7 @@ class RoomListWidget(QtWidgets.QWidget):
         self.push_button_logout.clicked.connect(self.logout)
 
     def show_new_room_dialog(self):
-        new_room_dialog = dialogs.NewRoomDialog(self, self.counting_sticks)
+        new_room_dialog = dialogs.NewRoomDialog(self, self.counting_sticks, self.username)
         new_room_dialog.exec_()
 
     def logout(self):
@@ -369,6 +369,7 @@ class RoomInfoWidget(QtWidgets.QWidget):
         self.counting_sticks = counting_sticks
         self.room_id = room_id
         self.username = username
+        self.room_name = ''  # get on update event
 
         self.main_window = main_window
 
@@ -438,6 +439,12 @@ class RoomInfoWidget(QtWidgets.QWidget):
         self.push_button_play.setObjectName("push_button_play")
         self.vertical_layout_2.addWidget(self.push_button_play)
 
+        fa_close_room_icon = qtawesome.icon('fa.times')
+
+        self.push_button_close_room = QtWidgets.QPushButton(fa_close_room_icon, "Close", self)
+        self.push_button_close_room.setObjectName("push_button_close_room")
+        self.vertical_layout_2.addWidget(self.push_button_close_room)
+
         self.connect_buttons()
 
         self.update_room_info()
@@ -448,22 +455,31 @@ class RoomInfoWidget(QtWidgets.QWidget):
 
     def connect_buttons(self):
         self.push_button_play.clicked.connect(self.play)
+        self.push_button_close_room.clicked.connect(self.close_room)
 
     def play(self):
         joined_room = self.counting_sticks.join_room(self.room_id, self.username)
         if joined_room:
-            room_widget = room.RoomWidget(self.main_window, self.counting_sticks, self.room_id, self.username)
+            room_widget = room.RoomWidget(self.main_window, self.counting_sticks,
+                                          self.room_id, self.room_name, self.username)
             self.main_window.central_widget.addWidget(room_widget)
             self.main_window.central_widget.setCurrentWidget(room_widget)
         else:
-            QtWidgets.QMessageBox(self, "It wasn't possible to join the room. Maybe it's full now. "
-                                        "Try again later. :(")
+            QtWidgets.QMessageBox.information(self, "Operation Failed", "It wasn't possible to join the room. "
+                                                                        "Maybe it's full now. Try again later. :(")
+
+    def close_room(self):
+        closed_room = self.counting_sticks.close_room(self.room_id, self.username)
+        if not closed_room:
+            QtWidgets.QMessageBox.information(self, "Operation Failed", "It wasn't possible to close the room. "
+                                                                        "Check if it's empty first.")
 
     def update_room_info(self):
         room_state_info = self.counting_sticks.room_state(self.room_id)
 
         if room_state_info is not None:
-            self.label_room_name.setText(room_state_info['name'])
+            self.room_name = room_state_info['name']
+            self.label_room_name.setText(self.room_name)
 
             current_players = room_state_info['current_players']
 
@@ -478,5 +494,8 @@ class RoomInfoWidget(QtWidgets.QWidget):
 
             accepting_players = not playing and current_players_number < max_players
             self.push_button_play.setEnabled(accepting_players)
+
+            is_room_creator = room_state_info['created_by'] == self.username
+            self.push_button_close_room.setEnabled(is_room_creator)
         else:
             self.push_button_play.setEnabled(False)

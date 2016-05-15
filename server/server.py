@@ -44,10 +44,10 @@ class CountingSticks(object):
         mongo_client.close()
         return room
 
-    def create_room(self, name, min_players, max_players):
+    def create_room(self, username, name, min_players, max_players):
         mongo_client = pymongo.MongoClient()
         room_collection = mongo_client.countingsticks.room
-        new_room = {'name': name, 'min_players': min_players, 'max_players': max_players,
+        new_room = {'created_by': username, 'name': name, 'min_players': min_players, 'max_players': max_players,
                     'current_players': [], 'playing': False, 'messages': []}
         result = room_collection.insert_one(new_room)
         mongo_client.close()
@@ -57,7 +57,7 @@ class CountingSticks(object):
     def close_room(self, room_id, username):
         # check if the user who is closing is who created
         # check if a game isn't running
-        pass
+        return False
 
     def send_message(self, room_id, username, message):
         mongo_client = pymongo.MongoClient()
@@ -90,11 +90,13 @@ class CountingSticks(object):
         finally:
             self.lock.release()
 
-    def start_game(self, room_id):
+    def new_game(self, room_id):
         self.lock.acquire()
         try:
-            game_started = False
-            if self.current_games[room_id] is None:
+            new_game_created = False
+            error_message = ''
+
+            if room_id not in self.current_games:
                 mongo_client = pymongo.MongoClient()
                 room_collection = mongo_client.countingsticks.room
                 room = room_collection.find_one({'_id': bson.objectid.ObjectId(room_id.strip())})
@@ -107,15 +109,16 @@ class CountingSticks(object):
                     game = Game(room_id, current_players)
                     self.current_games[room_id] = game
 
-                    game_started = True
+                    new_game_created = True
                 else:
-                    print('There isn\'t enough players')
+                    error_message = "There aren't enough players"
 
                 mongo_client.close()
             else:
-                print('A game for this room is already started')
+                error_message = "A game for this room is already started"
 
-            return game_started
+            response = {'success': new_game_created, 'error_message': error_message}
+            return response
         finally:
             self.lock.release()
 
