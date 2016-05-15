@@ -1,7 +1,124 @@
 # -*- coding: utf-8 -*-
 from PyQt5 import QtCore, QtGui, QtWidgets
-import ui.dialogs as dialogs
+from os.path import dirname, join, abspath
 from ui.widgets import room
+
+import ui.dialogs as dialogs
+import qtawesome
+
+class LoginWidget(QtWidgets.QWidget):
+
+    def __init__(self, main_window, counting_sticks):
+        super(LoginWidget, self).__init__(main_window)
+
+        self.counting_sticks = counting_sticks
+
+        self.main_window = main_window
+        self.main_window.setWindowTitle("Login - Counting Sticks")
+        self.main_window.resize(300, 400)
+        self.main_window.setAutoFillBackground(False)
+        self.main_window.setStyleSheet("")
+        self.main_window.center_on_screen()
+
+        self.setStyleSheet("QLabel{color: white;}")
+
+        self.setFixedSize(300, 400)
+        self.setAutoFillBackground(True)
+        palette = self.palette()
+        palette.setColor(self.backgroundRole(), QtGui.QColor("#2e8ece"))
+        self.setPalette(palette)
+
+        self.vertical_layout = QtWidgets.QVBoxLayout(self)
+        self.vertical_layout.setContentsMargins(11, 11, 11, 11)
+        self.vertical_layout.setSpacing(6)
+        self.vertical_layout.setObjectName("vertical_layout")
+
+        parent_folder_path = dirname(dirname(abspath(__file__)))
+        pixmap_logo = QtGui.QPixmap(join(parent_folder_path, "img", "logo.png")).scaledToHeight(130)
+
+        self.label_logo = QtWidgets.QLabel(self)
+        self.label_logo.setPixmap(pixmap_logo)
+        self.label_logo.setAlignment(QtCore.Qt.AlignCenter)
+        self.label_logo.setWordWrap(True)
+        self.label_logo.setObjectName("label_logo")
+        self.vertical_layout.addWidget(self.label_logo)
+
+        self.label_username = QtWidgets.QLabel("Username", self)
+        self.label_username.setObjectName("label_username")
+        self.vertical_layout.addWidget(self.label_username)
+
+        self.line_edit_username = QtWidgets.QLineEdit(self)
+        self.line_edit_username.setInputMask("")
+        self.line_edit_username.setText("")
+        self.line_edit_username.setObjectName("line_edit_username")
+        self.vertical_layout.addWidget(self.line_edit_username)
+
+        self.label_password = QtWidgets.QLabel("Password", self)
+        self.label_password.setObjectName("label_password")
+        self.vertical_layout.addWidget(self.label_password)
+
+        self.line_edit_password = QtWidgets.QLineEdit(self)
+        self.line_edit_password.setInputMask("")
+        self.line_edit_password.setEchoMode(QtWidgets.QLineEdit.Password)
+        self.line_edit_password.setObjectName("line_edit_password")
+        self.vertical_layout.addWidget(self.line_edit_password)
+
+        fa_login_icon = qtawesome.icon('fa.sign-in')
+
+        self.push_button_login = QtWidgets.QPushButton(fa_login_icon, "Login", self)
+        self.push_button_login.setObjectName("push_button_login")
+        self.push_button_login.setDefault(True)
+        self.vertical_layout.addWidget(self.push_button_login)
+
+        palette = QtGui.QPalette()
+        palette.setColor(QtGui.QPalette.Foreground, QtCore.Qt.red)
+
+        self.label_error_message = QtWidgets.QLabel(self)
+        self.label_error_message.setObjectName("label_error_message")
+        self.label_error_message.setPalette(palette)
+        self.label_error_message.setAlignment(QtCore.Qt.AlignCenter)
+        self.vertical_layout.addWidget(self.label_error_message)
+
+        spacer_item = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
+        self.vertical_layout.addItem(spacer_item)
+
+        fa_register_icon = qtawesome.icon('fa.plus')
+
+        self.push_button_register = QtWidgets.QPushButton(fa_register_icon, "Register", self)
+        self.push_button_register.setObjectName("push_button_register")
+        self.vertical_layout.addWidget(self.push_button_register)
+
+        spacer_item_2 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
+        self.vertical_layout.addItem(spacer_item_2)
+
+        self.connect_buttons()
+
+    def connect_buttons(self):
+        self.line_edit_username.returnPressed.connect(self.login)
+        self.line_edit_password.returnPressed.connect(self.login)
+        self.push_button_login.clicked.connect(self.login)
+
+        self.push_button_register.clicked.connect(self.show_register_widget)
+
+    def login(self):
+        username = self.line_edit_username.text()
+        password = self.line_edit_password.text()
+
+        valid_login = self.counting_sticks.login(username, password)
+        if valid_login:
+            self.show_room_list_widget(username)
+        else:
+            self.label_error_message.setText('Invalid username/password.')
+
+    def show_register_widget(self):
+        register_widget = RegisterWidget(self.main_window, self.counting_sticks)
+        self.main_window.central_widget.addWidget(register_widget)
+        self.main_window.central_widget.setCurrentWidget(register_widget)
+
+    def show_room_list_widget(self, username):
+        room_list_widget = RoomListWidget(self.main_window, self.counting_sticks, username)
+        self.main_window.central_widget.addWidget(room_list_widget)
+        self.main_window.central_widget.setCurrentWidget(room_list_widget)
 
 
 class RegisterWidget(QtWidgets.QWidget):
@@ -15,6 +132,7 @@ class RegisterWidget(QtWidgets.QWidget):
         self.main_window.setWindowTitle("Register - Counting Sticks")
         self.main_window.resize(300, 400)
         self.main_window.setAutoFillBackground(False)
+        self.main_window.center_on_screen()
 
         self.setStyleSheet("QLabel{color: white;}")
 
@@ -28,69 +146,58 @@ class RegisterWidget(QtWidgets.QWidget):
         self.vertical_layout.setSpacing(6)
         self.vertical_layout.setObjectName("vertical_layout")
 
-        font = QtGui.QFont()
-        font.setFamily("Al Nile")
-        font.setPointSize(30)
-        font.setBold(True)
-        font.setWeight(75)
+        parent_folder_path = dirname(dirname(abspath(__file__)))
+        pixmap_logo = QtGui.QPixmap(join(parent_folder_path, "img", "logo.png")).scaledToHeight(130)
 
         self.label_logo = QtWidgets.QLabel(self)
-        self.label_logo.setText("Counting Sticks")
-        self.label_logo.setFont(font)
+        self.label_logo.setPixmap(pixmap_logo)
         self.label_logo.setAlignment(QtCore.Qt.AlignCenter)
         self.label_logo.setWordWrap(False)
         self.label_logo.setObjectName("label_logo")
         self.vertical_layout.addWidget(self.label_logo)
 
-        self.label_username = QtWidgets.QLabel(self)
-        self.label_username.setText("Username")
+        self.label_username = QtWidgets.QLabel("Username", self)
         self.label_username.setObjectName("label_username")
         self.vertical_layout.addWidget(self.label_username)
 
         self.line_edit_username = QtWidgets.QLineEdit(self)
         self.line_edit_username.setInputMask("")
-        self.line_edit_username.setText("")
         self.line_edit_username.setObjectName("line_edit_username")
         self.vertical_layout.addWidget(self.line_edit_username)
 
-        self.label_email = QtWidgets.QLabel(self)
-        self.label_email.setText("Email")
+        self.label_email = QtWidgets.QLabel("Email", self)
         self.label_email.setObjectName("label_email")
         self.vertical_layout.addWidget(self.label_email)
 
         self.line_edit_email = QtWidgets.QLineEdit(self)
         self.line_edit_email.setInputMask("")
-        self.line_edit_email.setText("")
         self.line_edit_email.setEchoMode(QtWidgets.QLineEdit.Normal)
         self.line_edit_email.setObjectName("line_edit_email")
         self.vertical_layout.addWidget(self.line_edit_email)
 
-        self.label_password = QtWidgets.QLabel(self)
-        self.label_password.setText("Password")
+        self.label_password = QtWidgets.QLabel("Password", self)
         self.label_password.setObjectName("label_password")
         self.vertical_layout.addWidget(self.label_password)
 
         self.line_edit_password = QtWidgets.QLineEdit(self)
         self.line_edit_password.setInputMask("")
-        self.line_edit_password.setText("")
         self.line_edit_password.setEchoMode(QtWidgets.QLineEdit.Password)
         self.line_edit_password.setObjectName("line_edit_password")
         self.vertical_layout.addWidget(self.line_edit_password)
 
-        self.label_confirm_password = QtWidgets.QLabel(self)
-        self.label_confirm_password.setText("Confirm Password")
+        self.label_confirm_password = QtWidgets.QLabel("Confirm Password", self)
         self.label_confirm_password.setObjectName("label_confirm_password")
         self.vertical_layout.addWidget(self.label_confirm_password)
 
         self.line_edit_confirm_password = QtWidgets.QLineEdit(self)
         self.line_edit_confirm_password.setInputMask("")
-        self.line_edit_confirm_password.setText("")
         self.line_edit_confirm_password.setEchoMode(QtWidgets.QLineEdit.Password)
         self.line_edit_confirm_password.setObjectName("line_edit_confirm_password")
         self.vertical_layout.addWidget(self.line_edit_confirm_password)
 
-        self.push_button_register = QtWidgets.QPushButton(self)
-        self.push_button_register.setText("Register")
+        fa_register_icon = qtawesome.icon('fa.plus')
+
+        self.push_button_register = QtWidgets.QPushButton(fa_register_icon, "Register", self)
         self.push_button_register.setObjectName("push_button_register")
         self.vertical_layout.addWidget(self.push_button_register)
 
@@ -106,8 +213,9 @@ class RegisterWidget(QtWidgets.QWidget):
         spacer_item = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Ignored)
         self.vertical_layout.addItem(spacer_item)
 
-        self.push_button_back = QtWidgets.QPushButton(self)
-        self.push_button_back.setText("Back")
+        fa_back_icon = qtawesome.icon('fa.long-arrow-left')
+
+        self.push_button_back = QtWidgets.QPushButton(fa_back_icon, "Back", self)
         self.push_button_back.setObjectName("push_button_back")
         self.vertical_layout.addWidget(self.push_button_back)
 
@@ -142,126 +250,19 @@ class RegisterWidget(QtWidgets.QWidget):
         self.main_window.central_widget.removeWidget(self)
 
 
-class LoginWidget(QtWidgets.QWidget):
-
-    def __init__(self, main_window, counting_sticks):
-        super(LoginWidget, self).__init__(main_window)
-
-        self.counting_sticks = counting_sticks
-
-        self.main_window = main_window
-        self.main_window.setWindowTitle("Login - Counting Sticks")
-        self.main_window.resize(300, 400)
-        self.main_window.setAutoFillBackground(False)
-        self.main_window.setStyleSheet("")
-
-        self.setStyleSheet("QLabel{color: white;}")
-
-        self.setFixedSize(300, 400)
-        self.setAutoFillBackground(True)
-        palette = self.palette()
-        palette.setColor(self.backgroundRole(), QtGui.QColor("#2e8ece"))
-        self.setPalette(palette)
-
-        self.vertical_layout = QtWidgets.QVBoxLayout(self)
-        self.vertical_layout.setContentsMargins(11, 11, 11, 11)
-        self.vertical_layout.setSpacing(6)
-        self.vertical_layout.setObjectName("vertical_layout")
-
-        font = QtGui.QFont()
-        font.setFamily("Al Nile")
-        font.setPointSize(40)
-        font.setBold(True)
-        font.setWeight(75)
-
-        self.label_logo = QtWidgets.QLabel(self)
-        self.label_logo.setText("Counting Sticks")
-        self.label_logo.setFont(font)
-        self.label_logo.setAlignment(QtCore.Qt.AlignCenter)
-        self.label_logo.setWordWrap(True)
-        self.label_logo.setObjectName("label_logo")
-        self.vertical_layout.addWidget(self.label_logo)
-
-        self.label_username = QtWidgets.QLabel(self)
-        self.label_username.setText("Username")
-        self.label_username.setObjectName("label_username")
-        self.vertical_layout.addWidget(self.label_username)
-
-        self.line_edit_username = QtWidgets.QLineEdit(self)
-        self.line_edit_username.setInputMask("")
-        self.line_edit_username.setText("")
-        self.line_edit_username.setObjectName("line_edit_username")
-        self.vertical_layout.addWidget(self.line_edit_username)
-
-        self.label_password = QtWidgets.QLabel(self)
-        self.label_password.setText("Password")
-        self.label_password.setObjectName("label_password")
-        self.vertical_layout.addWidget(self.label_password)
-
-        self.line_edit_password = QtWidgets.QLineEdit(self)
-        self.line_edit_password.setInputMask("")
-        self.line_edit_password.setText("")
-        self.line_edit_password.setEchoMode(QtWidgets.QLineEdit.Password)
-        self.line_edit_password.setObjectName("line_edit_password")
-        self.vertical_layout.addWidget(self.line_edit_password)
-
-        self.push_button_login = QtWidgets.QPushButton(self)
-        self.push_button_login.setText("Login")
-        self.push_button_login.setObjectName("push_button_login")
-        self.vertical_layout.addWidget(self.push_button_login)
-
-        palette = QtGui.QPalette()
-        palette.setColor(QtGui.QPalette.Foreground, QtCore.Qt.red)
-
-        self.label_error_message = QtWidgets.QLabel(self)
-        self.label_error_message.setObjectName("label_error_message")
-        self.label_error_message.setPalette(palette)
-        self.label_error_message.setAlignment(QtCore.Qt.AlignCenter)
-        self.vertical_layout.addWidget(self.label_error_message)
-
-        spacer_item = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
-        self.vertical_layout.addItem(spacer_item)
-
-        self.push_button_register = QtWidgets.QPushButton(self)
-        self.push_button_register.setText("Register")
-        self.push_button_register.setObjectName("push_button_register")
-        self.vertical_layout.addWidget(self.push_button_register)
-
-        spacer_item_2 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
-        self.vertical_layout.addItem(spacer_item_2)
-
-        self.connect_buttons()
-
-    def connect_buttons(self):
-        self.push_button_login.clicked.connect(self.login)
-
-    def login(self):
-        username = self.line_edit_username.text()
-        password = self.line_edit_password.text()
-
-        valid_login = self.counting_sticks.login(username, password)
-        if valid_login:
-            self.show_room_list_widget()
-        else:
-            self.label_error_message.setText('Invalid username/password.')
-
-    def show_room_list_widget(self):
-        room_list_widget = RoomListWidget(self.main_window, self.counting_sticks)
-        self.main_window.central_widget.addWidget(room_list_widget)
-        self.main_window.central_widget.setCurrentWidget(room_list_widget)
-
-
 class RoomListWidget(QtWidgets.QWidget):
 
-    def __init__(self, main_window, counting_sticks, update_time=1000):
+    def __init__(self, main_window, counting_sticks, username, update_time=1000):
         super(RoomListWidget, self).__init__(main_window)
 
         self.counting_sticks = counting_sticks
+        self.username = username
 
         self.main_window = main_window
         self.main_window.setWindowTitle("Room List - Counting Sticks")
         self.main_window.resize(640, 350)
-        self.main_window.setAutoFillBackground(False)
+        # self.main_window.setAutoFillBackground(False)
+        self.main_window.center_on_screen()
 
         self.setAutoFillBackground(True)
         palette = self.palette()
@@ -276,8 +277,7 @@ class RoomListWidget(QtWidgets.QWidget):
         font.setPointSize(20)
         font.setWeight(75)
 
-        self.label_title = QtWidgets.QLabel(self)
-        self.label_title.setText("Counting Sticks - Room List")
+        self.label_title = QtWidgets.QLabel("Counting Sticks - Room List", self)
         self.label_title.setFont(font)
         self.label_title.setAlignment(QtCore.Qt.AlignCenter)
         self.label_title.setObjectName("label_title")
@@ -298,22 +298,20 @@ class RoomListWidget(QtWidgets.QWidget):
 
         self.room_widget_dict = {}
 
-        # self.update_room_list()
-
         self.scroll_area.setWidget(self.scroll_area_widget_contents)
         self.vertical_layout.addWidget(self.scroll_area)
 
-        self.push_button_create_room = QtWidgets.QPushButton(self)
-        self.push_button_create_room.setText("Create New Room")
+        fa_create_room_icon = qtawesome.icon('fa.plus')
+
+        self.push_button_create_room = QtWidgets.QPushButton(fa_create_room_icon, "Create New Room", self)
         self.push_button_create_room.setObjectName("push_button_create_room")
         self.vertical_layout.addWidget(self.push_button_create_room)
 
-        self.push_button_logout = QtWidgets.QPushButton(self)
-        self.push_button_logout.setText("Logout")
+        fa_logout_icon = qtawesome.icon('fa.sign-out')
+
+        self.push_button_logout = QtWidgets.QPushButton(fa_logout_icon, "Logout", self)
         self.push_button_logout.setObjectName("push_button_logout")
         self.vertical_layout.addWidget(self.push_button_logout)
-
-        # self.main_window.setCentralWidget(self.main_window.central_widget)
 
         self.status_bar = QtWidgets.QStatusBar(self.main_window)
         self.status_bar.setObjectName("status_bar")
@@ -341,47 +339,36 @@ class RoomListWidget(QtWidgets.QWidget):
     def update_room_list(self):
         room_id_list = self.counting_sticks.list_rooms_ids()
 
+        # Add new rooms
         for room_id in room_id_list:
             if room_id not in self.room_widget_dict:
-                room_widget = RoomInfoWidget(self, self.main_window, self.counting_sticks, room_id)
-                room_widget.setObjectName("room_widget_" + room_id)
-                self.horizontal_layout.addWidget(room_widget)
+                self.add_new_info_widget(room_id)
 
-                self.room_widget_dict[room_id] = room_widget
+        # Remove closed rooms
+        for room_id in list(self.room_widget_dict):
+            if room_id not in room_id_list:
+                self.remove_room_info_widget(room_id)
 
-        # remove closed rooms
-        # remove closed rooms
-        # remove closed rooms
-        # remove closed rooms
-        # remove closed rooms
-        # remove closed rooms
-        # remove closed rooms
-        # remove closed rooms
-        # remove closed rooms
-        # remove closed rooms
-        # remove closed rooms
-        # remove closed rooms
-        # remove closed rooms
-        # remove closed rooms
-        # remove closed rooms
-        # remove closed rooms
-        # remove closed rooms
-        # remove closed rooms
-        # remove closed rooms
-        # remove closed rooms
-        # remove closed rooms
-        # remove closed rooms
-        # remove closed rooms
-        # remove closed rooms
+    def add_new_info_widget(self, room_id):
+        room_widget = RoomInfoWidget(self, self.main_window, self.counting_sticks, room_id, self.username)
+        room_widget.setObjectName("room_widget_" + room_id)
+        self.horizontal_layout.addWidget(room_widget)
+        self.room_widget_dict[room_id] = room_widget
+
+    def remove_room_info_widget(self, room_id):
+        room_info_widget = self.room_widget_dict.pop(room_id)
+        self.horizontal_layout.removeWidget(room_info_widget)
+        room_info_widget.deleteLater()
 
 
 class RoomInfoWidget(QtWidgets.QWidget):
 
-    def __init__(self, parent, main_window, counting_sticks, room_id, update_time=1000):
+    def __init__(self, parent, main_window, counting_sticks, room_id, username, update_time=1000):
         super(RoomInfoWidget, self).__init__(parent)
 
         self.counting_sticks = counting_sticks
         self.room_id = room_id
+        self.username = username
 
         self.main_window = main_window
 
@@ -445,15 +432,11 @@ class RoomInfoWidget(QtWidgets.QWidget):
         spacer_item_1 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
         self.vertical_layout_2.addItem(spacer_item_1)
 
-        self.push_button_play = QtWidgets.QPushButton(self)
-        self.push_button_play.setText("Play")
+        fa_play_icon = qtawesome.icon('fa.gamepad')
+
+        self.push_button_play = QtWidgets.QPushButton(fa_play_icon, "Play", self)
         self.push_button_play.setObjectName("push_button_play")
         self.vertical_layout_2.addWidget(self.push_button_play)
-
-        self.push_button_watch = QtWidgets.QPushButton(self)
-        self.push_button_watch.setText("Watch")
-        self.push_button_watch.setObjectName("push_button_watch")
-        self.vertical_layout_2.addWidget(self.push_button_watch)
 
         self.connect_buttons()
 
@@ -465,43 +448,35 @@ class RoomInfoWidget(QtWidgets.QWidget):
 
     def connect_buttons(self):
         self.push_button_play.clicked.connect(self.play)
-        self.push_button_watch.clicked.connect(self.watch)
 
     def play(self):
-        print('# To implement: test if can enter')  # test if can enter
-        can_play = True  # change
-
-        if can_play:
-            print('# To implement: add in players list')  # test if can enter
-
-            entered_on_room = True  # change
-            if entered_on_room:
-                room_widget = room.RoomWidget(self.main_window, self.counting_sticks, self.room_id)
-                self.main_window.central_widget.addWidget(room_widget)
-                self.main_window.central_widget.setCurrentWidget(room_widget)
-            else:
-                QtWidgets.QMessageBox(self, "It wasn't possible to join the room. Maybe it's full now. "
-                                            "Try again later. :(")
+        joined_room = self.counting_sticks.join_room(self.room_id, self.username)
+        if joined_room:
+            room_widget = room.RoomWidget(self.main_window, self.counting_sticks, self.room_id, self.username)
+            self.main_window.central_widget.addWidget(room_widget)
+            self.main_window.central_widget.setCurrentWidget(room_widget)
         else:
-            QtWidgets.QMessageBox(self, "Sorry. You can't join this room.")
-
-    def watch(self):
-        print('# To implement: watch')  # implement watch
+            QtWidgets.QMessageBox(self, "It wasn't possible to join the room. Maybe it's full now. "
+                                        "Try again later. :(")
 
     def update_room_info(self):
         room_state_info = self.counting_sticks.room_state(self.room_id)
-        self.label_room_name.setText(room_state_info['name'])
 
-        current_players = room_state_info['current_players']
+        if room_state_info is not None:
+            self.label_room_name.setText(room_state_info['name'])
 
-        min_players = room_state_info['min_players']
-        current_players_number = len(current_players)
-        max_players = room_state_info['max_players']
-        self.label_current_players.setText(str(min_players) + '/' + str(current_players_number) \
-                                           + '/' + str(max_players))
+            current_players = room_state_info['current_players']
 
-        playing = room_state_info['playing']
-        self.label_game_status.setText('Playing' if playing else 'Waiting')
+            min_players = room_state_info['min_players']
+            current_players_number = len(current_players)
+            max_players = room_state_info['max_players']
+            self.label_current_players.setText(str(min_players) + '/' + str(current_players_number) \
+                                               + '/' + str(max_players))
 
-        accepting_players = not playing and current_players_number < max_players
-        self.push_button_play.setEnabled(accepting_players)
+            playing = room_state_info['playing']
+            self.label_game_status.setText('Playing' if playing else 'Waiting')
+
+            accepting_players = not playing and current_players_number < max_players
+            self.push_button_play.setEnabled(accepting_players)
+        else:
+            self.push_button_play.setEnabled(False)
