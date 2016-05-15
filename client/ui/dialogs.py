@@ -4,10 +4,11 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 
 class NewRoomDialog(QtWidgets.QDialog):
 
-    def __init__(self, parent, counting_sticks):
+    def __init__(self, parent, counting_sticks, username):
         super(NewRoomDialog, self).__init__(parent)
 
         self.counting_sticks = counting_sticks
+        self.username = username
 
         self.setWindowTitle("New Room - Counting Sticks")
         self.setObjectName("NewRoomWindow")
@@ -48,7 +49,7 @@ class NewRoomDialog(QtWidgets.QDialog):
 
         self.spin_box_min_players = QtWidgets.QSpinBox(self)
         self.spin_box_min_players.setGeometry(QtCore.QRect(41, 144, 91, 24))
-        self.spin_box_min_players.setMinimum(4)
+        self.spin_box_min_players.setMinimum(2)
         self.spin_box_min_players.setMaximum(6)
         self.spin_box_min_players.setObjectName("spin_box_min_players")
 
@@ -59,7 +60,7 @@ class NewRoomDialog(QtWidgets.QDialog):
 
         self.spin_box_max_players = QtWidgets.QSpinBox(self)
         self.spin_box_max_players.setGeometry(QtCore.QRect(162, 144, 91, 24))
-        self.spin_box_max_players.setMinimum(4)
+        self.spin_box_max_players.setMinimum(2)
         self.spin_box_max_players.setMaximum(6)
         self.spin_box_max_players.setObjectName("spin_box_max_players")
 
@@ -72,6 +73,16 @@ class NewRoomDialog(QtWidgets.QDialog):
 
     def connect_buttons(self):
         self.push_button_create_room.clicked.connect(self.create_room)
+        self.spin_box_max_players.valueChanged.connect(self.max_players_changed)
+        self.spin_box_min_players.valueChanged.connect(self.min_players_changed)
+
+    def max_players_changed(self, value):
+        if value < self.spin_box_min_players.value():
+            self.spin_box_min_players.setValue(value)
+
+    def min_players_changed(self, value):
+        if value > self.spin_box_max_players.value():
+            self.spin_box_max_players.setValue(value)
 
     def create_room(self):
         if not self.has_empty_fields():
@@ -79,7 +90,7 @@ class NewRoomDialog(QtWidgets.QDialog):
             min_players = self.spin_box_min_players.value()
             max_players = self.spin_box_max_players.value()
 
-            self.counting_sticks.create_room(room_name, min_players, max_players)
+            self.counting_sticks.create_room(self.username, room_name, min_players, max_players)
             self.close()
         else:
             print("All fields must be filled")  # Set in a label
