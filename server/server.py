@@ -1,140 +1,164 @@
 # -*- coding: utf-8 -*-
-import pymongo
-import bson
 from datetime import datetime
+import mongoengine
 import threading
+import models
+import timer
+import game
 
 
 class CountingSticks(object):
 
     def __init__(self):
+        print(str(datetime.now()), 'Starting CountingSticks object')
+
+        print(str(datetime.now()), 'Connecting to database')
+        mongoengine.connect('counting_sticks')
+
+        print(str(datetime.now()), 'Setting up object')
         self.lock = threading.Lock()
         self.current_games = {}
 
+        self.exclusion_verification_time = 20  # in seconds
+        self.confirm_presence_timer_dict = {}
+
+        print(str(datetime.now()), 'Deleting existing rooms')
+        models.Room.objects.delete()  # clean rooms on startup
+
+        print(str(datetime.now()), 'Creating test room')
+        self.create_room('lucas', 'APAGAR', 2, 2)
+
     def register(self, username, email, password):
-        mongo_client = pymongo.MongoClient()
-        user_collection = mongo_client.countingsticks.user
-        new_user = {'username': username, 'email': email, 'password': password}
-        user_collection.insert_one(new_user)
-        mongo_client.close()
+        new_user = models.User(username=username, email=email, password=password)
+        new_user.save()
 
     def login(self, username, password):
-        mongo_client = pymongo.MongoClient()
-        user_collection = mongo_client.countingsticks.user
-        found_user = user_collection.find_one({'username': username, 'password': password})
-        mongo_client.close()
-
+        found_user = models.User.objects(username=username, password=password).first()
         return found_user is not None
 
     def list_rooms_ids(self):
-        mongo_client = pymongo.MongoClient()
-        room_collection = mongo_client.countingsticks.room
+        rooms_ids = []
+        for room in models.Room.objects():
+            rooms_ids.append(str(room.id))
 
-        rooms = []  # change to get only id
-        for room in room_collection.find({}):
-            rooms.append(str(room['_id']))
+        return rooms_ids
 
-        mongo_client.close()
-        return rooms
+    def list_rooms_info(self):
+        return models.Room.objects.to_json()
 
-    def room_state(self, room_id):
-        mongo_client = pymongo.MongoClient()
-        room_collection = mongo_client.countingsticks.room
-        room = room_collection.find_one({'_id': bson.objectid.ObjectId(room_id.strip())})
-        mongo_client.close()
-        return room
+    def get_room_info(self, room_id):
+        return models.Room.objects.with_id(room_id).to_json()
 
     def create_room(self, username, name, min_players, max_players):
-        mongo_client = pymongo.MongoClient()
-        room_collection = mongo_client.countingsticks.room
-        new_room = {'created_by': username, 'name': name, 'min_players': min_players, 'max_players': max_players,
-                    'current_players': [], 'playing': False, 'messages': []}
-        result = room_collection.insert_one(new_room)
-        mongo_client.close()
+        new_room = models.Room(created_by=username, name=name, min_players=min_players, max_players=max_players,
+                               current_players=[], playing=False, messages=[])
+        new_room.save()
 
-        return result.inserted_id
+        str_new_room_id = str(new_room.id)
+        self.confirm_presence_timer_dict[str_new_room_id] = {}
+        return str_new_room_id
 
     def close_room(self, room_id, username):
         # check if the user who is closing is who created
         # check if a game isn't running
-        return False
 
-    def send_message(self, room_id, username, message):
-        mongo_client = pymongo.MongoClient()
-        room_collection = mongo_client.countingsticks.room
-        room = room_collection.find_one({'_id': bson.objectid.ObjectId(room_id.strip())})
+        self.lock.acquire()
+        try:
+            room = models.Room.objects.with_id(room_id)
+            if room.created_by == username and len(room.current_players) == 0:
+                models.Room.objects.with_id(room_id).delete()
+                return True
+            else:
+                return False
 
-        message_dict = {'datetime': datetime.now(), 'username': username, 'message': message}
-        room['messages'].append(message_dict)
-        room_collection.save(room)
-
-        mongo_client.close()
+        finally:
+            self.lock.release()
 
     def join_room(self, room_id, username):
         self.lock.acquire()
         try:
-            mongo_client = pymongo.MongoClient()
-            room_collection = mongo_client.countingsticks.room
-            room = room_collection.find_one({'_id': bson.objectid.ObjectId(room_id.strip())})
-            current_players = room['current_players']
+            room = models.Room.objects.with_id(room_id)
+            if not room.playing:
+                if len(room.current_players) < room.max_players:
+                    if username not in room.current_players:
+                        room.current_players.append(username)
+                        room.save()
 
-            joined_room = False
-            if not room['playing'] and len(current_players) < room['max_players']:
-                if username not in current_players:
-                    room['current_players'].append(username)
-                    room_collection.save(room)
-                joined_room = True
-
-            mongo_client.close()
-            return joined_room
+                    confirm_presence_timer = timer.ConfirmPresenceTimerThread(self.exclusion_verification_time, self,
+                                                                              room_id, username)
+                    self.confirm_presence_timer_dict[room_id][username] = confirm_presence_timer
+                    self.confirm_presence_timer_dict[room_id][username].start()
+                    return True
+                else:
+                    print(str(datetime.now()), 'Impossible to join room: Room is full')
+            else:
+                print(str(datetime.now()), 'Impossible to join room: A game is in execution')
+                return False
         finally:
             self.lock.release()
 
-    def new_game(self, room_id):
+    def confirm_presence(self, room_id, username):
+        print(str(datetime.now()), 'Confirm presence of', username, 'in room', room_id)
+        self.confirm_presence_timer_dict[room_id][username].reset()
+
+    def disconnect_player(self, room_id, username):
+        print(str(datetime.now()), 'Disconnected', username, 'of room', room_id)
+
+        # Remove player from room info on DB
+        room = models.Room.objects.with_id(room_id)
+        room.current_players.remove(username)
+        room.save()
+
+        # Remove player from game list
+
+
+
+    def send_message(self, room_id, username, message):
+        room = models.Room.objects.with_id(room_id)
+        message = models.Message(datetime=datetime.now(), username=username, message=message)
+        room.messages.append(message)
+        room.save()
+
+    def create_new_game(self, room_id):
         self.lock.acquire()
         try:
             new_game_created = False
             error_message = ''
 
             if room_id not in self.current_games:
-                mongo_client = pymongo.MongoClient()
-                room_collection = mongo_client.countingsticks.room
-                room = room_collection.find_one({'_id': bson.objectid.ObjectId(room_id.strip())})
-                current_players = room['current_players']
+                room = models.Room.objects.with_id(room_id)
+                if len(room.current_players) >= room.min_players:
+                    room.playing = True
+                    room.save()
 
-                if len(current_players) >= room['min_players']:
-                    room['playing'] = True
-                    room_collection.save(room)
-
-                    game = Game(room_id, current_players)
-                    self.current_games[room_id] = game
-
+                    new_game = game.Game(room_id, room.current_players)
+                    self.current_games[room_id] = new_game
                     new_game_created = True
                 else:
-                    error_message = "There aren't enough players"
-
-                mongo_client.close()
+                    print(str(datetime.now()), 'Impossible to create game: There are not enough players')
+                    error_message = 'There aren\'t enough players'
             else:
-                error_message = "A game for this room is already started"
+                print(str(datetime.now()), 'Impossible to create game: A game for this room is already started')
+                error_message = 'A game for this room is already started'
 
             response = {'success': new_game_created, 'error_message': error_message}
             return response
         finally:
             self.lock.release()
 
-    def confirm_presence(self, username):
-        # confirm that client is still present on room
-        pass
+    def get_game_state(self, room_id):
+        current_game = self.current_games[room_id]
+        game_state = current_game.current_state()
+        game_state_dict = {'current_state': game_state.current_state, 'current_player': game_state.current_player,
+                           'players_info': game_state.players_info}
+        return game_state_dict
 
+    def send_chosen_sticks(self, room_id, username, sticks_number):
+        print(str(datetime.now()), 'User', username, 'sent', str(sticks_number), 'sticks')
+        current_game = self.current_games[room_id]
+        current_game.choose_sticks(username, sticks_number)
 
-class Game(object):
-
-    def __init__(self, room_id, players):
-        self.room_id = room_id
-
-        self.player_info_dict = {}
-        for username in players:
-            self.player_info_dict[username] = {'username': username, 'current_sticks': 3,
-                                               'last_guesses': [], 'current_guess': None}
-
-        print(self.player_info_dict)
+    def send_guess(self, room_id, username, sticks_number):
+        print(str(datetime.now()), 'User', username, 'sent', str(sticks_number), 'in your guess')
+        current_game = self.current_games[room_id]
+        current_game.guess(username, sticks_number)

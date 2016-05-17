@@ -6,7 +6,7 @@ import ui
 
 
 def main():
-    counting_sticks = Pyro4.Proxy("PYRONAME:countingsticks")  # use name server object lookup uri shortcut
+    counting_sticks = Pyro4.Proxy("PYRONAME:counting_sticks")  # use name server object lookup uri shortcut
 
     app = QtWidgets.QApplication(sys.argv)
     window = ui.MainWindow(counting_sticks)

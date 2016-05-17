@@ -2,20 +2,25 @@
 from PyQt5 import QtCore, QtGui, QtWidgets
 from os.path import abspath, dirname, join
 import qtawesome
+import json
 
 
 class RoomWidget(QtWidgets.QWidget):
 
-    def __init__(self, main_window, counting_sticks, room_id, room_name, username, update_time=500):
+    def __init__(self, main_window, counting_sticks, room_id, room_name, username, update_time=500, confirm_time=5000):
         super(RoomWidget, self).__init__(main_window)
 
         self.counting_sticks = counting_sticks
         self.room_id = room_id
         self.username = username
 
-        self.dict_widget_players = {}
+        self.widget_players_dict = {}
         self.my_sticks = []
         self.selected_sticks = []
+        self.hidden_sticks = []
+        self.current_state = 0
+        self.waiting_other_users_action = False
+        self.waiting_on_state = 0
 
         self.main_window = main_window
         self.main_window.setWindowTitle("Room " + room_name + " - Counting Sticks")
@@ -34,8 +39,7 @@ class RoomWidget(QtWidgets.QWidget):
         self.horizontal_layout_widget_content.setObjectName("horizontal_layout_widget_content")
 
         self.widget_container_game = QtWidgets.QWidget(self)
-        self.widget_container_game.setStyleSheet("#widget_container_game{background-color: #27ae60;}")
-        # self.widget_container_game.setStyleSheet("border: 2px solid red;")  # change --------------------------------------
+        self.widget_container_game.setStyleSheet("#widget_container_game{background-color: #27ae60;}")  # border: 2px solid red;
         self.widget_container_game.setObjectName("widget_container_game")
 
         self.vertical_layout_widget_container_game = QtWidgets.QVBoxLayout(self.widget_container_game)
@@ -51,20 +55,14 @@ class RoomWidget(QtWidgets.QWidget):
         self.horizontal_layout_player_list.setContentsMargins(5, 5, 5, 5)
         self.horizontal_layout_player_list.setObjectName("horizontal_layout_player_list")
 
-        # ----------------------------- Widgets Players -----------------------------------------#
-        for username in ['lucascriistiano', 'ana_maria', 'joao_batista', 'cczinha', 'marcelo']:  #
-            widget_player = PlayerInfoWidget(self.widget_players_list, username)                 #
-            self.horizontal_layout_player_list.addWidget(widget_player)                          #
-        # ---------------------------------------------------------------------------------------#
-
         self.vertical_layout_widget_container_game.addWidget(self.widget_players_list)
         # ----------------------------------------------------------------------------
 
         # ------------------------ Message label --------------------------------------
         font_label_message = QtGui.QFont()
-        font_label_message.setPointSize(35)
+        font_label_message.setPointSize(30)
         font_label_message.setBold(True)
-        font_label_message.setWeight(70)
+        font_label_message.setWeight(65)
 
         self.label_message = QtWidgets.QLabel(self.widget_container_game)
         self.label_message.setMaximumHeight(40)
@@ -77,16 +75,16 @@ class RoomWidget(QtWidgets.QWidget):
         self.vertical_layout_widget_container_game.addWidget(self.label_message)
         # ----------------------------------------------------------------------------
 
-        # --------------- Game Elements container ------------------------------------
+        # -!-!-!-!-!-!-!-!-!-!-!- Game elements container !-!-!-!-!-!-!-!-!-!-!-!-!-!-
         self.widget_game = QtWidgets.QWidget(self.widget_container_game)
-        # self.widget_game.setStyleSheet("border: 2px solid red;")  # change -----------------------------------------------
         self.widget_game.setObjectName("widget_game")
 
-        # ---------------------------- Guess widget --------------------------------------
+        # ---------------------------- Guess widget ----------------------------------
         self.widget_guess = QtWidgets.QWidget(self.widget_game)
         self.widget_guess.setGeometry(QtCore.QRect(20, 0, 150, 120))
         self.widget_guess.setMaximumSize(QtCore.QSize(150, 120))
         self.widget_guess.setObjectName("widget_guess")
+        self.widget_guess.setVisible(False)
 
         self.vertical_layout_widget_guess = QtWidgets.QVBoxLayout(self.widget_guess)
         self.vertical_layout_widget_guess.setContentsMargins(0, 0, 0, 0)
@@ -118,14 +116,15 @@ class RoomWidget(QtWidgets.QWidget):
 
         self.vertical_layout_widget_guess.addWidget(self.label_guess_title)
         self.vertical_layout_widget_guess.addWidget(self.line_edit_guess)
-        # ----------------------------------------------------------------------------
+        # ---------------------------------------------------------------------------
 
-        # ------------------------- Player sticks ------------------------------------
+        # ------------------------- Player sticks -----------------------------------
         self.widget_my_sticks = QtWidgets.QWidget(self.widget_game)
         self.widget_my_sticks.setGeometry(QtCore.QRect(15, 160, 150, 150))
         self.widget_my_sticks.setMaximumSize(QtCore.QSize(150, 150))
         self.widget_my_sticks.setStyleSheet("QLabel{color: #f1c40f;}, QLabel:hover{color:  #f39c12;}")
         self.widget_my_sticks.setObjectName("widget_my_sticks")
+        self.widget_my_sticks.setVisible(False)
 
         self.horizontal_layout_my_sticks = QtWidgets.QHBoxLayout(self.widget_my_sticks)
         self.horizontal_layout_my_sticks.setContentsMargins(0, 0, 0, 0)
@@ -136,19 +135,19 @@ class RoomWidget(QtWidgets.QWidget):
         self.font_big_stick.setBold(True)
         self.font_big_stick.setWeight(75)
 
-        # ------------------------ Add player sticks ------------------------------------
-        for i in range(3):                                                              #
-            label_my_stick = QtWidgets.QLabel(self.widget_my_sticks)                    #
-            label_my_stick.setText("|")                                                 #
-            label_my_stick.setFont(self.font_big_stick)                                 #
-            label_my_stick.setStyleSheet(":hover {color:  #f39c12;}")                   #
-            label_my_stick.setAlignment(QtCore.Qt.AlignCenter)                          #
-            label_my_stick.setObjectName("label_stick")                                 #
-            self.horizontal_layout_my_sticks.addWidget(label_my_stick)                  #
-                                                                                        #
-            label_my_stick.mousePressEvent = self.add_stick                             #
-            self.my_sticks.append(label_my_stick)                                       #
-        # -------------------------------------------------------------------------------
+        # ------------------------ Add player sticks ----------------------------
+        for i in range(3):                                                      #
+            label_my_stick = QtWidgets.QLabel(self.widget_my_sticks)            #
+            label_my_stick.setText("|")                                         #
+            label_my_stick.setFont(self.font_big_stick)                         #
+            label_my_stick.setStyleSheet(":hover {color:  #f39c12;}")           #
+            label_my_stick.setAlignment(QtCore.Qt.AlignCenter)                  #
+            label_my_stick.setObjectName("label_stick")                         #
+            self.horizontal_layout_my_sticks.addWidget(label_my_stick)          #
+                                                                                #
+            label_my_stick.mousePressEvent = self.add_stick                     #
+            self.my_sticks.append(label_my_stick)                               #
+        # -----------------------------------------------------------------------
         # -------------------------------------------------------------------------------
 
         # ------------------------------- Player hand -----------------------------------
@@ -157,6 +156,7 @@ class RoomWidget(QtWidgets.QWidget):
         self.widget_player_hand.setMaximumSize(QtCore.QSize(300, 300))
         self.widget_player_hand.setStyleSheet("background-color: #2ecc71; border-radius: 15px;")
         self.widget_player_hand.setObjectName("widget_player_hand")
+        self.widget_player_hand.setVisible(False)
 
         self.horizontal_layout_player_hand = QtWidgets.QHBoxLayout(self.widget_player_hand)
         self.horizontal_layout_player_hand.setContentsMargins(0, 0, 0, 0)
@@ -168,10 +168,11 @@ class RoomWidget(QtWidgets.QWidget):
         font_chosen_hand.setWeight(75)
 
         parent_folder_path = dirname(dirname(abspath(__file__)))
-        pixmap_hand = QtGui.QPixmap(join(parent_folder_path, "img", "hand_open_2.png"))
+        self.pixmap_hand_closed = QtGui.QPixmap(join(parent_folder_path, "img", "hand_closed.png"))
+        self.pixmap_hand_open = QtGui.QPixmap(join(parent_folder_path, "img", "hand_open.png"))
 
         self.label_hand = QtWidgets.QLabel(self.widget_player_hand)
-        self.label_hand.setPixmap(pixmap_hand)
+        self.label_hand.setPixmap(self.pixmap_hand_open)
         self.label_hand.setFont(font_chosen_hand)
         self.label_hand.setStyleSheet("color: white;")
         self.label_hand.setAlignment(QtCore.Qt.AlignCenter)
@@ -184,8 +185,9 @@ class RoomWidget(QtWidgets.QWidget):
         self.widget_chosen_sticks.setGeometry(QtCore.QRect(350, 160, 110, 110))
         self.widget_chosen_sticks.setMaximumSize(QtCore.QSize(150, 150))
         self.widget_chosen_sticks.setStyleSheet("QLabel{color: #f1c40f;}, "
-                                                "QLabel:hover{color:  #f39c12;}")  # to user test border: 1px solid red;
+                                                "QLabel:hover{color:  #f39c12;}")
         self.widget_chosen_sticks.setObjectName("widget_chosen_sticks")
+        self.widget_chosen_sticks.setVisible(False)
 
         self.horizontal_layout_chosen_sticks = QtWidgets.QHBoxLayout(self.widget_chosen_sticks)
         self.horizontal_layout_chosen_sticks.setContentsMargins(0, 0, 0, 0)
@@ -199,6 +201,7 @@ class RoomWidget(QtWidgets.QWidget):
         self.widget_button_go.setStyleSheet("QWidget{background-color: #3498db; border-radius: 50%;} "
                                             "QWidget:hover{background-color: #2e8ece; border-radius: 50%;}")
         self.widget_button_go.setObjectName("widget_button_go")
+        self.widget_button_go.setVisible(False)
 
         self.horizontal_layout_button_go = QtWidgets.QHBoxLayout(self.widget_button_go)
         self.horizontal_layout_button_go.setContentsMargins(0, 0, 0, 0)
@@ -224,6 +227,7 @@ class RoomWidget(QtWidgets.QWidget):
         self.widget_time.setMaximumSize(QtCore.QSize(200, 120))
         self.widget_time.setStyleSheet("color: white;")
         self.widget_time.setObjectName("widget_time")
+        self.widget_time.setVisible(False)
 
         self.vertical_layout_widget_time = QtWidgets.QVBoxLayout(self.widget_time)
         self.vertical_layout_widget_time.setContentsMargins(0, 0, 0, 0)
@@ -231,12 +235,9 @@ class RoomWidget(QtWidgets.QWidget):
 
         font_label_time_title = QtGui.QFont()
         font_label_time_title.setPointSize(25)
-        # font_label_time_title.setBold(True)
         font_label_time_title.setWeight(70)
 
         self.label_time_title = QtWidgets.QLabel(self.widget_container_game)
-        # self.label_time_title.setMaximumHeight(40)
-        # self.label_time_title.setMinimumHeight(40)
         self.label_time_title.setText("Time")
         self.label_time_title.setFont(font_label_time_title)
         self.label_time_title.setStyleSheet("color: white;")
@@ -249,9 +250,7 @@ class RoomWidget(QtWidgets.QWidget):
         font_label_time_value.setWeight(70)
 
         self.label_time_value = QtWidgets.QLabel(self.widget_container_game)
-        # self.label_time_value.setMaximumHeight(40)
-        # self.label_time_value.setMinimumHeight(40)
-        self.label_time_value.setText("30")
+        self.label_time_value.setText("-")
         self.label_time_value.setFont(font_label_time_value)
         self.label_time_value.setStyleSheet("color: white;")
         self.label_time_value.setAlignment(QtCore.Qt.AlignCenter)
@@ -265,7 +264,7 @@ class RoomWidget(QtWidgets.QWidget):
         font_label_new_game_exit.setPointSize(30)
         font_label_new_game_exit.setWeight(60)
 
-        # -------------------------------- Button New Game ------------------------------
+        # ----------------------------- Button New Game ------------------------------
         self.widget_button_new_game = QtWidgets.QWidget(self.widget_game)
         self.widget_button_new_game.setGeometry(QtCore.QRect(540, 170, 200, 60))
         self.widget_button_new_game.setMaximumSize(QtCore.QSize(200, 65))
@@ -284,9 +283,9 @@ class RoomWidget(QtWidgets.QWidget):
         self.label_button_new_game.setAlignment(QtCore.Qt.AlignCenter)
         self.label_button_new_game.setObjectName("label_button_new_game")
         self.horizontal_layout_button_new_game.addWidget(self.label_button_new_game)
-        # ------------------------------------------------------------------------------
+        # ----------------------------------------------------------------------------
 
-        # -------------------------------- Button Exit ---------------------------------
+        # -------------------------------- Button Exit -------------------------------
         self.widget_button_exit = QtWidgets.QWidget(self.widget_game)
         self.widget_button_exit.setGeometry(QtCore.QRect(540, 240, 200, 60))
         self.widget_button_exit.setMaximumSize(QtCore.QSize(200, 65))
@@ -305,7 +304,7 @@ class RoomWidget(QtWidgets.QWidget):
         self.label_button_exit.setAlignment(QtCore.Qt.AlignCenter)
         self.label_button_exit.setObjectName("label_button_exit")
         self.horizontal_layout_button_exit.addWidget(self.label_button_exit)
-        # -----------------------------------------------------------------------------
+        # ----------------------------------------------------------------------------
 
         self.widget_guess.raise_()
         self.widget_my_sticks.raise_()
@@ -318,9 +317,9 @@ class RoomWidget(QtWidgets.QWidget):
 
         self.vertical_layout_widget_container_game.addWidget(self.widget_game)
         self.horizontal_layout_widget_content.addWidget(self.widget_container_game)
-        # ----------------------------------------------------------------------------------
+        # -!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-
 
-        # --------------- Messenger elements container -------------------------------------
+        # -!-!-!-!-!-!-!-!-!-!- Messenger elements container !-!-!-!-!-!-!-!-!-!-!-!-!-
         self.widget_messenger = QtWidgets.QWidget(self)
         self.widget_messenger.setMaximumSize(QtCore.QSize(220, 16777215))
         self.widget_messenger.setStyleSheet("#widget_messenger{background-color: #2ecc71; border-radius: 10px;}")
@@ -329,6 +328,30 @@ class RoomWidget(QtWidgets.QWidget):
         self.vertical_layout = QtWidgets.QVBoxLayout(self.widget_messenger)
         self.vertical_layout.setContentsMargins(0, 0, 0, 0)
         self.vertical_layout.setObjectName("vertical_layout")
+
+        # ----------------------------- Label Username -------------------------------
+        font_label_username = QtGui.QFont()
+        font_label_username.setPointSize(25)
+        font_label_username.setWeight(50)
+
+        self.widget_username = QtWidgets.QWidget(self.widget_messenger)
+        self.widget_username.setStyleSheet("QWidget{background-color: #95a5a6; border-radius: 10px;}")
+        self.widget_username.setObjectName("widget_username")
+
+        self.horizontal_layout_widget_username = QtWidgets.QHBoxLayout(self.widget_username)
+        self.horizontal_layout_widget_username.setContentsMargins(0, 0, 0, 0)
+        self.horizontal_layout_widget_username.setObjectName("horizontal_layout_widget_username")
+
+        self.label_username = QtWidgets.QLabel(self.widget_username)
+        self.label_username.setText(self.username)
+        self.label_username.setFont(font_label_username)
+        self.label_username.setStyleSheet("color: white;")
+        self.label_username.setAlignment(QtCore.Qt.AlignCenter)
+        self.label_username.setObjectName("label_username")
+        self.horizontal_layout_widget_username.addWidget(self.label_username)
+
+        self.vertical_layout.addWidget(self.widget_username)
+        # ----------------------------------------------------------------------------
 
         # ----------------------- Message list widget ---------------------------------
         self.list_widget_messages = QtWidgets.QListWidget(self.widget_messenger)
@@ -355,7 +378,6 @@ class RoomWidget(QtWidgets.QWidget):
         font_button_send_message.setPointSize(15)
 
         fa_send_message_icon = qtawesome.icon('fa.comment-o')
-
         self.push_button_send_message = QtWidgets.QPushButton(fa_send_message_icon, "Send Message",
                                                               self.widget_messenger)
         self.push_button_send_message.setFont(font_button_send_message)
@@ -365,9 +387,17 @@ class RoomWidget(QtWidgets.QWidget):
         # -----------------------------------------------------------------------------
 
         self.horizontal_layout_widget_content.addWidget(self.widget_messenger)
-        # ----------------------------------------------------------------------------------
+
+        # -!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-
 
         self.connect_buttons()
+
+        self.timer_confirm_presence = QtCore.QTimer()
+        self.timer_confirm_presence.timeout.connect(self.confirm_presence)
+        self.timer_confirm_presence.start(confirm_time)
+
+        self.main_window.reconnect_update_timer(self.update_game_state)
+        self.main_window.start_update_timer()
 
     def connect_buttons(self):
         self.label_button_go.mousePressEvent = self.go_button_action
@@ -375,21 +405,224 @@ class RoomWidget(QtWidgets.QWidget):
         self.label_button_exit.mousePressEvent = self.exit_button_action
         self.push_button_send_message.clicked.connect(self.send_message)
 
-    def closeEvent(self, event):
-        # event.accept()  # let the window close
-        print('Wants to close')
-        event.ignore()
+    def update_game_state(self):
+        room_info_raw_json = self.counting_sticks.get_room_info(self.room_id)
+        room_info = json.loads(room_info_raw_json)
+
+        if 'current_players' not in room_info:
+            room_info['current_players'] = []
+
+        current_players = room_info['current_players']
+
+        # Remove current user info from list
+        if self.username in current_players:
+            current_players.remove(self.username)
+
+        self.check_created_player_info_widgets(current_players)
+
+        if room_info['playing']:
+            game_state = self.counting_sticks.get_game_state(self.room_id)
+            user_player_info = game_state['players_info'].pop(self.username)
+
+            self.current_state = game_state['current_state']
+
+            # Fill game info for each player
+            for username in game_state['players_info']:
+                player_info = game_state['players_info'][username]
+                if username in self.widget_players_dict:
+                    widget_player = self.widget_players_dict[username]
+                    widget_player.update_info(player_info['username'], player_info['current_sticks'],
+                                              player_info['last_guesses'], player_info['current_guess'])
+
+            if self.current_state == 0:  # choose sticks
+                self.label_message.setText('Select your sticks')
+
+                # Check number of sticks and hide sticks excess
+                if len(self.my_sticks) > user_player_info['current_sticks']:
+                    sticks_to_remove = len(self.my_sticks) - user_player_info['current_sticks']
+                    for i in range(sticks_to_remove):
+                        self.hide_stick()
+
+                # Set pixmap to hand
+                self.label_hand.setPixmap(self.pixmap_hand_open)
+
+                # Clear indicator of current player making guess
+                for username in self.widget_players_dict:
+                    widget_player = self.widget_players_dict[username]
+                    palette = widget_player.palette()
+                    palette.setColor(self.backgroundRole(), QtGui.QColor("#2ecc71"))
+                    widget_player.setPalette(palette)
+
+                # Make components visible
+                self.widget_guess.setVisible(False)
+                self.widget_my_sticks.setVisible(True)
+                self.widget_button_go.setVisible(True)
+                self.widget_player_hand.setVisible(True)
+                self.widget_chosen_sticks.setVisible(True)
+                self.widget_time.setVisible(True)
+                self.widget_button_new_game.setVisible(False)
+
+                # change items when is waiting for users action
+                if self.waiting_other_users_action and self.waiting_on_state == self.current_state:
+                    self.widget_my_sticks.setVisible(False)
+                    self.widget_button_go.setVisible(False)
+                    self.widget_chosen_sticks.setVisible(False)
+                    self.widget_time.setVisible(False)
+
+                    # Set pixmap to hand close
+                    self.label_hand.setPixmap(self.pixmap_hand_closed)
+
+            elif self.current_state == 1:  # guess sticks number
+                self.move_selected_sticks_to_my_sticks()
+
+                # Set pixmap to hand
+                self.label_hand.setPixmap(self.pixmap_hand_closed)
+
+                if game_state['current_player'] == self.username:
+                    self.label_message.setText('It\'s your time to guess!')
+                else:
+                    self.label_message.setText('Waiting guesses')
+
+                # Indicate current player making guess
+                for username in self.widget_players_dict:
+                    widget_player = self.widget_players_dict[username]
+                    palette = widget_player.palette()
+
+                    if game_state['current_player'] == username:
+                        palette.setColor(self.backgroundRole(), QtGui.QColor("#e67e22"))
+                    else:
+                        palette.setColor(self.backgroundRole(), QtGui.QColor("#2ecc71"))
+
+                    widget_player.setPalette(palette)
+
+                # Make components visible
+                if game_state['current_player'] == self.username:
+                    self.widget_guess.setVisible(True)
+                    self.widget_button_go.setVisible(True)
+                else:
+                    self.widget_guess.setVisible(False)
+                    self.widget_button_go.setVisible(False)
+
+                self.widget_my_sticks.setVisible(False)
+                self.widget_player_hand.setVisible(True)
+                self.widget_chosen_sticks.setVisible(False)
+                self.widget_time.setVisible(True)
+                self.widget_button_new_game.setVisible(False)
+
+                # change items when is waiting for users action
+                if self.waiting_other_users_action and self.waiting_on_state == self.current_state:
+                    self.widget_guess.setVisible(False)
+                    self.widget_button_go.setVisible(False)
+                    self.widget_time.setVisible(False)
+
+            else:  # game finished
+                self.move_selected_sticks_to_my_sticks()
+                self.show_hidden_sticks()
+
+                # Make components visible
+                self.widget_guess.setVisible(False)
+                self.widget_my_sticks.setVisible(False)
+                self.widget_button_go.setVisible(False)
+                self.widget_player_hand.setVisible(False)
+                self.widget_chosen_sticks.setVisible(False)
+                self.widget_time.setVisible(False)
+                self.widget_button_new_game.setVisible(True)
+
+                print('Game finished')
+
+        else:
+            # Make components visible
+            self.widget_guess.setVisible(False)
+            self.widget_my_sticks.setVisible(False)
+            self.widget_button_go.setVisible(False)
+            self.widget_player_hand.setVisible(False)
+            self.widget_chosen_sticks.setVisible(False)
+            self.widget_time.setVisible(False)
+            self.widget_button_new_game.setVisible(True)
+
+    def check_created_player_info_widgets(self, current_players):
+        # Add new users widgets
+        for username in current_players:
+            if username not in self.widget_players_dict:
+                self.add_new_player_info_widget(username)
+
+        # Remove players that exited
+        for username in list(self.widget_players_dict):
+            if username not in current_players:
+                self.remove_player_info_widget(username)
+
+    def add_new_player_info_widget(self, username):
+        widget_player = PlayerInfoWidget(self.widget_players_list, username)
+        widget_player.setObjectName("widget_player" + username)
+        self.horizontal_layout_player_list.addWidget(widget_player)
+        self.widget_players_dict[username] = widget_player
+
+    def remove_player_info_widget(self, username):
+        widget_player = self.widget_players_dict.pop(username)
+        self.horizontal_layout_player_list.removeWidget(widget_player)
+        widget_player.deleteLater()
 
     def go_button_action(self, event):
-        print('Selected sticks: ' + str(len(self.selected_sticks)))
+        if self.current_state == 0:
+            self.send_selected_sticks()
+        elif self.current_state == 1:
+            self.send_guess()
+
+    def send_selected_sticks(self):
+        self.counting_sticks.send_chosen_sticks(self.room_id, self.username, len(self.selected_sticks))
+
+        # check if sticks number was accepted
+        self.waiting_other_users_action = True
+        self.waiting_on_state = self.current_state
+
+    def send_guess(self):
+        str_guess = self.line_edit_guess.text()
+        if str_guess != '':
+            guess_sticks_number = int(str_guess)
+            self.counting_sticks.send_guess(self.room_id, self.username, guess_sticks_number)
+
+            # check if sticks number was accepted
+            self.waiting_other_users_action = True
+            self.waiting_on_state = self.current_state
+
+            self.line_edit_guess.clear()
+        else:
+            self.label_message.setText('Enter your guess first')
+
+    def confirm_presence(self):
+        self.counting_sticks.confirm_presence(self.room_id, self.username)
 
     def new_game_button_action(self, event):
-        response = self.counting_sticks.new_game(self.room_id)
+        response = self.counting_sticks.create_new_game(self.room_id)
         if not response['success']:
             self.label_message.setText(response['error_message'])
 
     def exit_button_action(self, event):
         print('Leave room')
+
+    def hide_stick(self):
+        stick = self.my_sticks.pop(0)
+        self.horizontal_layout_my_sticks.removeWidget(stick)
+
+        stick.setParent(None)
+        stick.mousePressEvent = None
+        self.hidden_sticks.append(stick)
+
+    def show_hidden_sticks(self):
+        # Remove stick from hidden sticks
+        hidden_sticks_number = len(self.hidden_sticks)
+        for i in range(hidden_sticks_number):
+            # Get stick and move to available sticks
+            hidden_stick = self.hidden_sticks.pop(0)
+            hidden_stick.setParent(self.widget_my_sticks)
+            hidden_stick.mousePressEvent = self.add_stick
+            self.horizontal_layout_my_sticks.addWidget(hidden_stick)
+            self.my_sticks.append(hidden_stick)
+
+    def move_selected_sticks_to_my_sticks(self):
+        selected_sticks_number = len(self.selected_sticks)
+        for i in range(selected_sticks_number):
+            self.remove_stick(None)
 
     def add_stick(self, event):
         if len(self.my_sticks) > 0:

@@ -2,9 +2,9 @@
 from PyQt5 import QtCore, QtGui, QtWidgets
 from os.path import dirname, join, abspath
 from ui.widgets import room
-
 import ui.dialogs as dialogs
 import qtawesome
+import json
 
 class LoginWidget(QtWidgets.QWidget):
 
@@ -64,7 +64,6 @@ class LoginWidget(QtWidgets.QWidget):
         self.vertical_layout.addWidget(self.line_edit_password)
 
         fa_login_icon = qtawesome.icon('fa.sign-in')
-
         self.push_button_login = QtWidgets.QPushButton(fa_login_icon, "Login", self)
         self.push_button_login.setObjectName("push_button_login")
         self.push_button_login.setDefault(True)
@@ -83,7 +82,6 @@ class LoginWidget(QtWidgets.QWidget):
         self.vertical_layout.addItem(spacer_item)
 
         fa_register_icon = qtawesome.icon('fa.plus')
-
         self.push_button_register = QtWidgets.QPushButton(fa_register_icon, "Register", self)
         self.push_button_register.setObjectName("push_button_register")
         self.vertical_layout.addWidget(self.push_button_register)
@@ -97,7 +95,6 @@ class LoginWidget(QtWidgets.QWidget):
         self.line_edit_username.returnPressed.connect(self.login)
         self.line_edit_password.returnPressed.connect(self.login)
         self.push_button_login.clicked.connect(self.login)
-
         self.push_button_register.clicked.connect(self.show_register_widget)
 
     def login(self):
@@ -196,7 +193,6 @@ class RegisterWidget(QtWidgets.QWidget):
         self.vertical_layout.addWidget(self.line_edit_confirm_password)
 
         fa_register_icon = qtawesome.icon('fa.plus')
-
         self.push_button_register = QtWidgets.QPushButton(fa_register_icon, "Register", self)
         self.push_button_register.setObjectName("push_button_register")
         self.vertical_layout.addWidget(self.push_button_register)
@@ -214,7 +210,6 @@ class RegisterWidget(QtWidgets.QWidget):
         self.vertical_layout.addItem(spacer_item)
 
         fa_back_icon = qtawesome.icon('fa.long-arrow-left')
-
         self.push_button_back = QtWidgets.QPushButton(fa_back_icon, "Back", self)
         self.push_button_back.setObjectName("push_button_back")
         self.vertical_layout.addWidget(self.push_button_back)
@@ -252,7 +247,7 @@ class RegisterWidget(QtWidgets.QWidget):
 
 class RoomListWidget(QtWidgets.QWidget):
 
-    def __init__(self, main_window, counting_sticks, username, update_time=1000):
+    def __init__(self, main_window, counting_sticks, username):
         super(RoomListWidget, self).__init__(main_window)
 
         self.counting_sticks = counting_sticks
@@ -302,13 +297,11 @@ class RoomListWidget(QtWidgets.QWidget):
         self.vertical_layout.addWidget(self.scroll_area)
 
         fa_create_room_icon = qtawesome.icon('fa.plus')
-
         self.push_button_create_room = QtWidgets.QPushButton(fa_create_room_icon, "Create New Room", self)
         self.push_button_create_room.setObjectName("push_button_create_room")
         self.vertical_layout.addWidget(self.push_button_create_room)
 
         fa_logout_icon = qtawesome.icon('fa.sign-out')
-
         self.push_button_logout = QtWidgets.QPushButton(fa_logout_icon, "Logout", self)
         self.push_button_logout.setObjectName("push_button_logout")
         self.vertical_layout.addWidget(self.push_button_logout)
@@ -319,11 +312,8 @@ class RoomListWidget(QtWidgets.QWidget):
 
         self.connect_buttons()
 
-        self.update_room_list()
-
-        self.timer_room_list_update = QtCore.QTimer()
-        self.timer_room_list_update.timeout.connect(self.update_room_list)
-        self.timer_room_list_update.start(update_time)
+        self.main_window.reconnect_update_timer(self.update_room_list)
+        self.main_window.start_update_timer()
 
     def connect_buttons(self):
         self.push_button_create_room.clicked.connect(self.show_new_room_dialog)
@@ -337,14 +327,23 @@ class RoomListWidget(QtWidgets.QWidget):
         print('Will do logout')
 
     def update_room_list(self):
-        room_id_list = self.counting_sticks.list_rooms_ids()
+        rooms_info_list_raw_json = self.counting_sticks.list_rooms_info()
+        rooms_info_list = json.loads(rooms_info_list_raw_json)
 
-        # Add new rooms
-        for room_id in room_id_list:
+        # Add new rooms and update existing and new rooms
+        for room_info in rooms_info_list:
+            room_id = room_info['_id']['$oid']
+
+            # Add a new room info widget
             if room_id not in self.room_widget_dict:
                 self.add_new_info_widget(room_id)
 
+            # Update widget room info
+            room_info_widget = self.room_widget_dict[room_id]
+            room_info_widget.update_room_info(room_info)
+
         # Remove closed rooms
+        room_id_list = self.counting_sticks.list_rooms_ids()
         for room_id in list(self.room_widget_dict):
             if room_id not in room_id_list:
                 self.remove_room_info_widget(room_id)
@@ -363,7 +362,7 @@ class RoomListWidget(QtWidgets.QWidget):
 
 class RoomInfoWidget(QtWidgets.QWidget):
 
-    def __init__(self, parent, main_window, counting_sticks, room_id, username, update_time=1000):
+    def __init__(self, parent, main_window, counting_sticks, room_id, username):
         super(RoomInfoWidget, self).__init__(parent)
 
         self.counting_sticks = counting_sticks
@@ -371,6 +370,7 @@ class RoomInfoWidget(QtWidgets.QWidget):
         self.username = username
         self.room_name = ''  # get on update event
 
+        self.parent = parent
         self.main_window = main_window
 
         # self.setAutoFillBackground(True)
@@ -434,24 +434,16 @@ class RoomInfoWidget(QtWidgets.QWidget):
         self.vertical_layout_2.addItem(spacer_item_1)
 
         fa_play_icon = qtawesome.icon('fa.gamepad')
-
         self.push_button_play = QtWidgets.QPushButton(fa_play_icon, "Play", self)
         self.push_button_play.setObjectName("push_button_play")
         self.vertical_layout_2.addWidget(self.push_button_play)
 
         fa_close_room_icon = qtawesome.icon('fa.times')
-
         self.push_button_close_room = QtWidgets.QPushButton(fa_close_room_icon, "Close", self)
         self.push_button_close_room.setObjectName("push_button_close_room")
         self.vertical_layout_2.addWidget(self.push_button_close_room)
 
         self.connect_buttons()
-
-        self.update_room_info()
-
-        self.timer_info_update = QtCore.QTimer()
-        self.timer_info_update.timeout.connect(self.update_room_info)
-        self.timer_info_update.start(update_time)
 
     def connect_buttons(self):
         self.push_button_play.clicked.connect(self.play)
@@ -474,28 +466,28 @@ class RoomInfoWidget(QtWidgets.QWidget):
             QtWidgets.QMessageBox.information(self, "Operation Failed", "It wasn't possible to close the room. "
                                                                         "Check if it's empty first.")
 
-    def update_room_info(self):
-        room_state_info = self.counting_sticks.room_state(self.room_id)
-
-        if room_state_info is not None:
-            self.room_name = room_state_info['name']
+    def update_room_info(self, room_info):
+        if room_info is not None:
+            self.room_name = room_info['name']
             self.label_room_name.setText(self.room_name)
 
-            current_players = room_state_info['current_players']
+            if 'current_players' in room_info:
+                current_players_number = len(room_info['current_players'])
+            else:
+                current_players_number = 0
 
-            min_players = room_state_info['min_players']
-            current_players_number = len(current_players)
-            max_players = room_state_info['max_players']
-            self.label_current_players.setText(str(min_players) + '/' + str(current_players_number) \
-                                               + '/' + str(max_players))
+            min_players = room_info['min_players']
+            max_players = room_info['max_players']
+            self.label_current_players.setText(str(min_players) + '/' + str(current_players_number) + '/' +
+                                               str(max_players))
 
-            playing = room_state_info['playing']
+            playing = room_info['playing']
             self.label_game_status.setText('Playing' if playing else 'Waiting')
 
             accepting_players = not playing and current_players_number < max_players
             self.push_button_play.setEnabled(accepting_players)
 
-            is_room_creator = room_state_info['created_by'] == self.username
+            is_room_creator = room_info['created_by'] == self.username
             self.push_button_close_room.setEnabled(is_room_creator)
         else:
             self.push_button_play.setEnabled(False)
