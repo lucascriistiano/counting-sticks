@@ -81,7 +81,13 @@ class Game(object):
                 self.process_results()
 
                 if self.is_game_finished():
-                    self.current_state = 2
+                    self.current_state = 2  # Game Finished
+
+                    print('Game is finished')
+                    print('Winners')
+                    print(self.winners)
+                    print('Results')
+                    print(self.game_results)
                 else:
                     self.rounds += 1
                     self.round_results = {}
@@ -98,13 +104,6 @@ class Game(object):
                         self.players_info[username]['current_guess'] = None
 
                 self.define_next_round_players_order()
-
-            elif self.current_state == 2:  # Game Finished
-                print('Game is finished')
-                print('Winners')
-                print(self.winners)
-                print('Results')
-                print(self.game_results)
 
             self.pending_players_action = list(self.players_order)
         finally:
