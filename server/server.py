@@ -26,7 +26,7 @@ class CountingSticks(object):
         models.Room.objects.delete()  # clean rooms on startup
 
         print(str(datetime.now()), 'Creating test room')
-        self.create_room('lucas', 'APAGAR', 2, 2)
+        self.create_room('lucas', 'Test Room', 2, 3)
 
     def register(self, username, email, password):
         new_user = models.User(username=username, email=email, password=password)
@@ -131,7 +131,7 @@ class CountingSticks(object):
                     room.playing = True
                     room.save()
 
-                    new_game = game.Game(room_id, room.current_players)
+                    new_game = game.Game(list(room.current_players))
                     self.current_games[room_id] = new_game
                     new_game_created = True
                 else:
@@ -148,9 +148,8 @@ class CountingSticks(object):
 
     def get_game_state(self, room_id):
         current_game = self.current_games[room_id]
-        game_state = current_game.current_state()
-        game_state_dict = {'current_state': game_state.current_state, 'current_player': game_state.current_player,
-                           'players_info': game_state.players_info}
+        game_state_dict = {'current_state': current_game.current_state, 'current_player': current_game.current_player,
+                           'players_info': current_game.players_info}
         return game_state_dict
 
     def send_chosen_sticks(self, room_id, username, sticks_number):

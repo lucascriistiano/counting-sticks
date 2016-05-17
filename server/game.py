@@ -2,36 +2,24 @@
 import threading
 
 
-class GameState(object):
+class Game(object):
 
     def __init__(self, players):
+        self.rounds = 0
+
         self.current_state = 0  # 0 - Choose sticks, 1 - Guess, 2 - Finished
-        self.current_player = ''
 
         self.players_info = {}
         for username in players:
             self.players_info[username] = {'username': username, 'current_sticks': 3,
                                            'last_guesses': [], 'current_guess': None}
 
-
-class Game(object):
-
-    def __init__(self, room_id, players):
-        self.room_id = room_id
-
-        self.rounds = 0
-        self.pending_players_to_start = set(players)
-
         self.players_order = list(players)
         self.pending_players_action = list(self.players_order)
-
-        self.game_state = GameState(players)
-        self.game_state.current_player = self.current_player()
 
         self.selected_sticks = {}
         self.round_results = {}
         self.game_results = []
-
         self.winners = []
 
         self.lock = threading.RLock()
@@ -39,12 +27,11 @@ class Game(object):
     def choose_sticks(self, username, sticks_number):
         self.lock.acquire()
         try:
-            if self.game_state.current_state == 0:  # choose sticks mode
+            if self.current_state == 0:  # choose sticks mode
 
                 if username in self.pending_players_action:
                     self.selected_sticks[username] = sticks_number
                     self.pending_players_action.remove(username)
-                    print(username, ' chose ', self.selected_sticks[username], ' sticks')
 
                 if not self.pending_players_action:
                     print('Everybody chose sticks number')
@@ -56,17 +43,19 @@ class Game(object):
     def guess(self, username, sticks_number):
         self.lock.acquire()
         try:
-            if self.game_state.current_state == 1:  # make guess mode
+            if self.current_state == 1:  # make guess mode
+
                 if self.has_pending_players():
                     if username in self.pending_players_action:  # players who didn't make guess yet
-                        if username == self.current_player():
-                            if username in self.game_state.players_info:
+                        if username == self.current_player:
+                            if username in self.players_info:
                                 # Check sticks guess limit value
                                 # Avoid repeated guesses
 
                                 # save guess and pass to next player
-                                self.game_state.players_info[username]['current_guess'] = sticks_number
-                                self.next_player()
+                                self.players_info[username]['current_guess'] = sticks_number
+                                self.remove_current_player_of_round()
+
                                 print('Guess ', username, ': ', sticks_number)
 
                                 if not self.has_pending_players():
@@ -85,54 +74,50 @@ class Game(object):
     def go_to_next_state(self):
         self.lock.acquire()
         try:
-            if self.game_state.current_state == 0:  # Choose Sticks State
-                if self.rounds != 0:
-                    self.set_next_round_players_order()
+            if self.current_state == 0:  # Choose Sticks State
+                self.current_state = 1
 
-                self.game_state.current_state = 1
-
-            elif self.game_state.current_state == 1:  # Guess State
+            elif self.current_state == 1:  # Guess State
                 self.process_results()
+
                 if self.is_game_finished():
-                    self.game_state.current_state = 2
+                    self.current_state = 2
                 else:
                     self.rounds += 1
                     self.round_results = {}
-                    self.game_state.current_state = 0
+                    self.current_state = 0
 
-                    for username in self.game_state.players_info:
-                        current_guess = self.game_state.players_info[username]['current_guess']
+                    for username in self.players_info:
+                        current_guess = self.players_info[username]['current_guess']
 
-                        if len(self.game_state.players_info[username]['last_guesses']) == 3:
-                            self.game_state.players_info[username]['last_guesses'].pop(0)
-                        self.game_state.players_info[username]['last_guesses'].append(current_guess)
+                        last_guesses_number = len(self.players_info[username]['last_guesses'])
+                        if last_guesses_number == 3:
+                            self.players_info[username]['last_guesses'].pop(0)
 
-                        self.game_state.players_info[username]['current_guess'] = None
+                        self.players_info[username]['last_guesses'].append(current_guess)
+                        self.players_info[username]['current_guess'] = None
 
-            elif self.game_state.current_state == 2:  # Game Finished
+                self.define_next_round_players_order()
+
+            elif self.current_state == 2:  # Game Finished
                 print('Game is finished')
+                print('Winners')
+                print(self.winners)
+                print('Results')
+                print(self.game_results)
 
             self.pending_players_action = list(self.players_order)
         finally:
             self.lock.release()
 
-    def current_state(self):
-        return self.game_state
-
-    def remove_player(self, username):
-        self.players_order.remove(username)
-
-    def set_next_round_players_order(self):
+    def define_next_round_players_order(self):
         last_round_first_player = self.players_order.pop(0)
-        self.pending_players_to_start.remove(last_round_first_player)
         self.players_order.append(last_round_first_player)
 
-    def next_player(self):
+    def remove_current_player_of_round(self):
         self.pending_players_action.pop(0)
 
-        if self.has_pending_players():
-            self.game_state.current_player = self.current_player()
-
+    @property
     def current_player(self):
         return self.pending_players_action[0]
 
@@ -141,8 +126,8 @@ class Game(object):
 
     def is_game_finished(self):
         players_with_sticks = 0
-        for username in self.game_state.players_info:
-            current_sticks = self.game_state.players_info[username]['current_sticks']
+        for username in self.players_info:
+            current_sticks = self.players_info[username]['current_sticks']
             if current_sticks > 0:
                 players_with_sticks += 1
 
@@ -157,17 +142,17 @@ class Game(object):
             total_selected_sticks += self.selected_sticks[username]
 
         round_has_winner = False
-        for username in self.game_state.players_info:
-            current_guess = self.game_state.players_info[username]['current_guess']
+        for username in self.players_info:
+            current_guess = self.players_info[username]['current_guess']
             if current_guess == total_selected_sticks:
                 round_has_winner = True
                 self.round_results['winner'] = username
                 self.round_results['total_sticks'] = total_selected_sticks
 
                 # remove a stick of winner
-                self.game_state.players_info[username]['current_sticks'] -= 1
+                self.players_info[username]['current_sticks'] -= 1
 
-                if self.game_state.players_info[username]['current_sticks'] == 0:
+                if self.players_info[username]['current_sticks'] == 0:
                     # remove player from order list to play
                     self.winners.append(username)
 
@@ -175,4 +160,4 @@ class Game(object):
                 break
 
         if round_has_winner:
-            self.game_results.append(self.game_results)
+            self.game_results.append(self.round_results)
