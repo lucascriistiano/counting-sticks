@@ -22,5 +22,8 @@ class Room(Document):
     playing = BooleanField()
     messages = ListField(EmbeddedDocumentField(Message))
 
-# class Game(Document):
-#     pass
+    def get_new_messages(self, last_message_datetime):
+        if last_message_datetime is None:
+            return self.messages
+        else:
+            return [message for message in self.messages if message.datetime > last_message_datetime]

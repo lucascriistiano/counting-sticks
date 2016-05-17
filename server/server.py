@@ -111,8 +111,6 @@ class CountingSticks(object):
 
         # Remove player from game list
 
-
-
     def send_message(self, room_id, username, message):
         room = models.Room.objects.with_id(room_id)
         message = models.Message(datetime=datetime.now(), username=username, message=message)
@@ -161,3 +159,20 @@ class CountingSticks(object):
         print(str(datetime.now()), 'User', username, 'sent', str(sticks_number), 'in your guess')
         current_game = self.current_games[room_id]
         current_game.guess(username, sticks_number)
+
+    def get_messages(self, room_id, last_message_datetime=None):
+        str_last_message_datetime = last_message_datetime
+
+        message_datetime = None
+        if last_message_datetime is not None:
+            message_datetime = datetime.strptime(str_last_message_datetime, "%Y-%m-%d %H:%M:%S.%f")
+
+        room_messages = models.Room.objects.with_id(room_id).get_new_messages(message_datetime)
+
+        result_messages = []
+        for found_message in room_messages:
+            message = {'datetime': str(found_message.datetime), 'username': found_message.username,
+                       'message': found_message.message}
+            result_messages.append(message)
+
+        return result_messages

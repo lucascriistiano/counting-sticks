@@ -3,16 +3,19 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 from os.path import abspath, dirname, join
 import qtawesome
 import json
+from datetime import datetime
 
 
 class RoomWidget(QtWidgets.QWidget):
 
-    def __init__(self, main_window, counting_sticks, room_id, room_name, username, update_time=500, confirm_time=5000):
+    def __init__(self, main_window, counting_sticks, room_id, room_name, username, confirm_time=5000,
+                 update_messages_time=2000):
         super(RoomWidget, self).__init__(main_window)
 
         self.counting_sticks = counting_sticks
         self.room_id = room_id
         self.username = username
+        self.last_message_datetime = None
 
         self.widget_players_dict = {}
         self.my_sticks = []
@@ -396,6 +399,10 @@ class RoomWidget(QtWidgets.QWidget):
         self.timer_confirm_presence.timeout.connect(self.confirm_presence)
         self.timer_confirm_presence.start(confirm_time)
 
+        self.timer_update_messages = QtCore.QTimer()
+        self.timer_update_messages.timeout.connect(self.update_messages)
+        self.timer_update_messages.start(update_messages_time)
+
         self.main_window.reconnect_update_timer(self.update_game_state)
         self.main_window.start_update_timer()
 
@@ -650,14 +657,27 @@ class RoomWidget(QtWidgets.QWidget):
 
     def send_message(self):
         message = self.plain_text_edit_message.toPlainText()
-
         if message != "":
             self.counting_sticks.send_message(self.room_id, self.username, message)
             self.plain_text_edit_message.clear()
 
-            self.list_widget_messages.addItem(self.username + ': ' + message)
-            print('Message sent! Update messages later')
-            
+    def update_messages(self):
+        if self.last_message_datetime is None:
+            messages = self.counting_sticks.get_messages(self.room_id)
+        else:
+            messages = self.counting_sticks.get_messages(self.room_id, str(self.last_message_datetime))
+
+        for message in messages:
+            message_username = message['username']
+            if message_username == self.username:
+                self.list_widget_messages.addItem('Eu : ' + message['message'])
+            else:
+                self.list_widget_messages.addItem(message_username + ' : ' + message['message'])
+
+            message_datetime = datetime.strptime(message['datetime'], "%Y-%m-%d %H:%M:%S.%f")
+            if self.last_message_datetime is None or message_datetime > self.last_message_datetime:
+                self.last_message_datetime = message_datetime
+
             
 class PlayerInfoWidget(QtWidgets.QWidget):
     
